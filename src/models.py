@@ -5,7 +5,8 @@ Trains and evaluates three models:
 
   1. Naive Baseline  — yesterday's return as prediction (random-walk benchmark)
   2. XGBoost         — gradient-boosted trees
-  3. LightGBM        — leaf-wise gradient boosting
+  3. XGBoost Calibrated — same regressor with validation-tuned directional threshold
+  4. LightGBM        — leaf-wise gradient boosting
 
 FIXES vs v1:
   - Added naive baseline model
@@ -49,6 +50,30 @@ def evaluate(name: str, y_true: np.ndarray, y_pred: np.ndarray) -> Dict:
     rmse = np.sqrt(mean_squared_error(y_true, y_pred))
     da = directional_accuracy(y_true, y_pred)
     return {"model": name, "MAE": mae, "RMSE": rmse, "DirectionalAccuracy": da}
+
+
+def fit_direction_threshold(
+    y_true: np.ndarray,
+    y_score: np.ndarray,
+    threshold_min: float = -0.01,
+    threshold_max: float = 0.01,
+    steps: int = 161,
+) -> tuple[float, float]:
+    best_threshold = 0.0
+    best_score = -np.inf
+    for threshold in np.linspace(threshold_min, threshold_max, steps):
+        signed_pred = np.where(y_score >= threshold, 1.0, -1.0)
+        score = directional_accuracy(y_true, signed_pred)
+        if score > best_score or (
+            np.isclose(score, best_score) and abs(threshold) < abs(best_threshold)
+        ):
+            best_threshold = float(threshold)
+            best_score = score
+    return best_threshold, float(best_score)
+
+
+def apply_direction_threshold(y_score: np.ndarray, threshold: float) -> np.ndarray:
+    return np.where(y_score >= threshold, np.abs(y_score), -np.abs(y_score))
 
 
 def build_xgboost() -> xgb.XGBRegressor:
@@ -114,6 +139,22 @@ class NaiveBaseline:
             self._ret_col_idx = None
 
 
+class DirectionalCalibratedRegressor:
+    """Wraps a regression model with a validation-calibrated directional threshold."""
+
+    def __init__(self, base_model: object, threshold: float = 0.0):
+        self.base_model = base_model
+        self.threshold = threshold
+
+    def fit_threshold(self, y_val: np.ndarray, raw_val_pred: np.ndarray) -> float:
+        self.threshold, _ = fit_direction_threshold(y_val, raw_val_pred)
+        return self.threshold
+
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        raw_pred = self.base_model.predict(X)
+        return apply_direction_threshold(raw_pred, self.threshold)
+
+
 class ModelTrainer:
     """Trains, evaluates, and persists all models."""
 
@@ -169,7 +210,25 @@ class ModelTrainer:
             f"RMSE={xgb_metrics['RMSE']:.5f}  DA={xgb_metrics['DirectionalAccuracy']:.3f}"
         )
 
-        # ── 3. LightGBM ───────────────────────────────────────────────────────
+        # ── 3. XGBoost Calibrated ────────────────────────────────────────────
+        logger.info("Calibrating XGBoost directional threshold on validation data …")
+        raw_val_pred = xgb_model.predict(X_val)
+        xgb_calibrated = DirectionalCalibratedRegressor(xgb_model)
+        threshold = xgb_calibrated.fit_threshold(y_val, raw_val_pred)
+        y_pred_xgb_cal = xgb_calibrated.predict(X_test)
+        xgb_cal_metrics = evaluate("XGBoost Calibrated", y_test, y_pred_xgb_cal)
+        xgb_cal_metrics["direction_threshold"] = threshold
+        xgb_cal_metrics["y_pred"] = y_pred_xgb_cal
+        self.results.append(xgb_cal_metrics)
+        self.trained_models["XGBoost Calibrated"] = xgb_calibrated
+        self._save_model("XGBoost Calibrated", xgb_calibrated, feature_cols)
+        logger.info(
+            f"  XGBoost Calibrated — MAE={xgb_cal_metrics['MAE']:.5f}  "
+            f"RMSE={xgb_cal_metrics['RMSE']:.5f}  DA={xgb_cal_metrics['DirectionalAccuracy']:.3f}  "
+            f"threshold={threshold:.6f}"
+        )
+
+        # ── 4. LightGBM ───────────────────────────────────────────────────────
         logger.info("Training LightGBM …")
         lgb_model = build_lightgbm()
         # FIX: use validation set for early stopping, NOT test set
@@ -251,10 +310,11 @@ class ModelTrainer:
         logger.debug(f"  Saved feature cols ({len(feature_cols)}) → {feat_path}")
 
         try:
-            if hasattr(model, "feature_importances_"):
+            importance_model = model.base_model if hasattr(model, "base_model") else model
+            if hasattr(importance_model, "feature_importances_"):
                 fi = pd.DataFrame({
                     "feature": feature_cols,
-                    "importance": model.feature_importances_
+                    "importance": importance_model.feature_importances_
                 }).sort_values("importance", ascending=False)
                 fi.to_csv(
                     cfg.outputs_dir / f"{name.lower()}_feature_importance.csv",

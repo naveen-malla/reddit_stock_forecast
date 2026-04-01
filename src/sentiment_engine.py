@@ -8,7 +8,7 @@ Scores every Reddit post/comment with two sentiment signals:
               Loaded only when explicitly requested.
 
 FIXES vs v1:
-  - FinBERT uses GPU when available via torch.cuda.is_available()
+  - FinBERT uses the best available accelerator (CUDA, Apple MPS, then CPU)
   - Graceful fallback to VADER-only with clear logging
   - Sentiment windows use config.sentiment_windows properly
 """
@@ -49,12 +49,20 @@ class SentimentEngine:
         self._finbert_tok = None
         if use_finbert and not _FINBERT_AVAILABLE:
             logger.warning("FinBERT requested but torch/transformers are unavailable. Falling back to VADER only.")
-        # FIX: detect device for FinBERT — guard against torch not being installed
+        # Prefer CUDA, then Apple Silicon MPS, then CPU.
         if _FINBERT_AVAILABLE:
             import torch as _torch
-            self._device = "cuda" if _torch.cuda.is_available() else "cpu"
+            if _torch.cuda.is_available():
+                self._device = "cuda"
+            elif hasattr(_torch.backends, "mps") and _torch.backends.mps.is_available():
+                self._device = "mps"
+            else:
+                self._device = "cpu"
         else:
             self._device = "cpu"
+
+        if self._device == "mps":
+            self.batch_size = min(self.batch_size, 32)
 
         if self.use_finbert:
             self._load_finbert()
@@ -116,6 +124,11 @@ class SentimentEngine:
 
     def _finbert_score_batch(self, texts: list) -> list:
         import torch
+        label_lookup = {
+            str(label).lower(): idx for idx, label in self._finbert_model.config.id2label.items()
+        }
+        pos_idx = label_lookup["positive"]
+        neg_idx = label_lookup["negative"]
         scores = []
         for i in tqdm(range(0, len(texts), self.batch_size), desc="FinBERT"):
             batch = texts[i: i + self.batch_size]
@@ -128,7 +141,7 @@ class SentimentEngine:
             with torch.no_grad():
                 logits = self._finbert_model(**enc).logits
                 probs = torch.softmax(logits, dim=-1).cpu().numpy()
-            signed = probs[:, 0] - probs[:, 1]  # positive (0) - negative (1)
+            signed = probs[:, pos_idx] - probs[:, neg_idx]
             scores.extend(signed.tolist())
         return scores
 

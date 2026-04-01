@@ -31,7 +31,7 @@ _EXCLUDE_COLS = {
     "macd", "macd_signal", "macd_hist",
     "log_volume", "volume_ma20",
 }
-_DATASET_CACHE_VERSION = "2"
+_DATASET_CACHE_VERSION = "3"
 
 
 class DatasetBuilder:
@@ -164,8 +164,10 @@ class DatasetBuilder:
                 "vader_pos_ratio",
                 "vader_w3d_mean",
                 "vader_w7d_mean",
+                "finbert_mean",
+                "finbert_pos_ratio",
             ]
-            if col in df.columns
+            if col in df.columns and self._has_signal(df[col])
         ]
         for col in sentiment_cols:
             df[f"{col}_ma5"] = ticker_groups[col].transform(
@@ -186,7 +188,21 @@ class DatasetBuilder:
             df["sentiment_x_volume"] = df[sentiment_anchor] * df["volume_ratio"]
             df["sentiment_x_ret1d"] = df[sentiment_anchor] * df["ret_1d"]
 
+        has_finbert_signal = "finbert_mean" in df.columns and self._has_signal(df["finbert_mean"])
+
+        if has_finbert_signal and "vader_weighted_mean" in df.columns:
+            df["sentiment_model_gap"] = df["finbert_mean"] - df["vader_weighted_mean"]
+            df["sentiment_model_agreement"] = df["finbert_mean"] * df["vader_weighted_mean"]
+        elif has_finbert_signal and "vader_mean" in df.columns:
+            df["sentiment_model_gap"] = df["finbert_mean"] - df["vader_mean"]
+            df["sentiment_model_agreement"] = df["finbert_mean"] * df["vader_mean"]
+
         return df
+
+    @staticmethod
+    def _has_signal(series: pd.Series) -> bool:
+        values = pd.to_numeric(series, errors="coerce").fillna(0)
+        return bool((values.abs() > 1e-12).any())
 
     def _split(
         self, df: pd.DataFrame

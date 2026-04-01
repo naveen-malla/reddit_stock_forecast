@@ -65,7 +65,7 @@ python run_pipeline.py
   Stage 4 → Score sentiment: VADER by default, FinBERT optional
   Stage 5 → Fetch OHLCV from Yahoo Finance + engineer features
   Stage 6 → Merge, lag 1 day, split 70% train / 10% val / 20% test
-  Stage 7 → Train: Naive Baseline + XGBoost + LightGBM
+  Stage 7 → Train: Naive Baseline + XGBoost + XGBoost Calibrated + LightGBM
   Stage 8 → Generate PNG + interactive HTML plots
 ```
 
@@ -114,6 +114,7 @@ reddit_equity_forecast/
 |---|---|
 | **Naive Baseline** | Yesterday's return — random-walk null hypothesis |
 | **XGBoost** | Gradient-boosted trees, early stopping on val set |
+| **XGBoost Calibrated** | XGBoost regression with a validation-tuned directional threshold |
 | **LightGBM** | Leaf-wise boosting, early stopping on val set |
 
 ## Acceptance Criteria
