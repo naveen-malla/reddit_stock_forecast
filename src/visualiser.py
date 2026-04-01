@@ -20,11 +20,9 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
-import numpy as np
 import pandas as pd
 import seaborn as sns
 import plotly.graph_objects as go
-import plotly.express as px
 from plotly.subplots import make_subplots
 
 import sys
@@ -32,10 +30,24 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from config import cfg
 from loguru import logger
 from src.models import BASELINE_MODEL_NAME
+from src.plot_style import (
+    FIG_DPI,
+    FINBERT,
+    PANEL,
+    REFERENCE,
+    SENTIMENT,
+    SENTIMENT_FILL,
+    XGBOOST,
+    add_reference_line,
+    add_title,
+    apply_chart_style,
+    apply_plotly_layout,
+    display_model_name,
+    model_color,
+    style_axes,
+)
 
-sns.set_theme(style="darkgrid", context="notebook", font_scale=1.1)
-PALETTE = sns.color_palette("tab10")
-FIG_DPI = 150
+apply_chart_style(font_scale=1.0)
 _PREDICTION_META_COLS = {"ticker", "date", "actual"}
 
 
@@ -59,17 +71,33 @@ class Visualiser:
         if not p.exists():
             return
         df = pd.read_parquet(p).head(cfg.top_n_tickers)
+        df = df.sort_values("avg_daily_volume", ascending=True).reset_index(drop=True)
+        volumes_m = df["avg_daily_volume"] / 1e6
 
-        fig, ax = plt.subplots(figsize=(10, 5))
-        bars = ax.barh(df["ticker"][::-1], df["avg_daily_volume"][::-1] / 1e6,
-                       color=PALETTE[:len(df)])
+        fig, ax = plt.subplots(figsize=(10.5, 5.6))
+        fig.patch.set_facecolor(PANEL)
+        colors = sns.light_palette(XGBOOST, n_colors=len(df) + 2)[2:]
+        bars = ax.barh(df["ticker"], volumes_m, color=colors, edgecolor="none", height=0.72)
+        style_axes(ax, x_grid=True, y_grid=False)
+        add_title(
+            ax,
+            f"Top {cfg.top_n_tickers} Tickers by 90-Day Average Trading Volume",
+            "Ranked within the thesis ticker candidate universe.",
+        )
         ax.xaxis.set_major_formatter(mtick.FuncFormatter(lambda x, _: f"{x:.0f}M"))
-        ax.set_xlabel("Avg Daily Volume (millions of shares)")
-        ax.set_title(f"Top-{cfg.top_n_tickers} Tickers by 90-Day Average Trading Volume", pad=12)
-        for bar, val in zip(bars, df["avg_daily_volume"][::-1] / 1e6):
-            ax.text(val + 0.5, bar.get_y() + bar.get_height() / 2,
-                    f"{val:.1f}M", va="center", fontsize=9)
-        plt.tight_layout()
+        ax.set_xlabel("Average daily volume (millions of shares)")
+        ax.set_ylabel("")
+        max_val = float(volumes_m.max())
+        ax.set_xlim(0, max_val * 1.18)
+        for bar, val in zip(bars, volumes_m):
+            ax.text(
+                val + max_val * 0.015,
+                bar.get_y() + bar.get_height() / 2,
+                f"{val:.1f}M",
+                va="center",
+                fontsize=9,
+            )
+        fig.tight_layout()
         self._save(fig, "volume_ranking")
 
     # ── 2. Sentiment time series ──────────────────────────────────────────────
@@ -81,25 +109,50 @@ class Visualiser:
         df = pd.read_parquet(p)
         tickers = df["ticker"].unique()[:6]
 
-        fig, axes = plt.subplots(len(tickers), 1, figsize=(13, 3 * len(tickers)), sharex=True)
+        fig, axes = plt.subplots(len(tickers), 1, figsize=(13, 2.9 * len(tickers)), sharex=True)
         if len(tickers) == 1:
             axes = [axes]
 
         for ax, ticker in zip(axes, tickers):
             sub = df[df["ticker"] == ticker].sort_values("date")
-            ax.fill_between(sub["date"], sub["vader_mean"].clip(-1, 1), alpha=0.4, color=PALETTE[0])
-            ax.plot(sub["date"], sub["vader_mean"].rolling(7).mean(),
-                    color=PALETTE[0], linewidth=1.4, label="VADER 7-day MA")
+            style_axes(ax, x_grid=False, y_grid=True)
+            ax.fill_between(
+                sub["date"],
+                sub["vader_mean"].clip(-1, 1),
+                color=SENTIMENT_FILL,
+                alpha=0.55,
+                linewidth=0,
+            )
+            ax.plot(
+                sub["date"],
+                sub["vader_mean"].rolling(7).mean(),
+                color=SENTIMENT,
+                linewidth=2.0,
+                label="VADER 7-day mean",
+            )
             if "finbert_mean" in sub.columns and sub["finbert_mean"].notna().any():
-                ax.plot(sub["date"], sub["finbert_mean"].rolling(7).mean(),
-                        color=PALETTE[1], linewidth=1.4, label="FinBERT 7-day MA")
-            ax.axhline(0, color="gray", linewidth=0.7, linestyle="--")
+                ax.plot(
+                    sub["date"],
+                    sub["finbert_mean"].rolling(7).mean(),
+                    color=FINBERT,
+                    linewidth=1.8,
+                    label="FinBERT 7-day mean",
+                )
+            add_reference_line(ax, 0.0)
             ax.set_ylabel("Sentiment", fontsize=9)
-            ax.set_title(ticker, fontsize=10, fontweight="bold")
-            ax.legend(fontsize=8, loc="upper right")
+            ax.set_title(ticker, loc="left", fontsize=10.5, fontweight="bold", pad=8)
+            ax.legend(frameon=False, fontsize=8.5, loc="upper right")
 
-        fig.suptitle("Reddit Sentiment Time Series by Ticker", fontsize=13, y=1.01)
-        plt.tight_layout()
+        fig.suptitle("Reddit Sentiment Time Series by Ticker", x=0.06, y=0.995, ha="left", fontsize=14, fontweight="bold")
+        fig.text(
+            0.06,
+            0.968,
+            "Daily ticker-level sentiment with smoothed VADER scores and optional FinBERT comparison.",
+            ha="left",
+            fontsize=9.5,
+            color="#5B6B7C",
+        )
+        fig.tight_layout(rect=[0, 0, 1, 0.95])
         self._save(fig, "sentiment_timeseries")
 
     # ── 3. Model comparison ───────────────────────────────────────────────────
@@ -116,27 +169,44 @@ class Visualiser:
             ("RMSE", "Root Mean Squared Error"),
             ("DirectionalAccuracy", "Directional Accuracy"),
         ]
-
-        colors = [PALETTE[2] if m == BASELINE_MODEL_NAME else PALETTE[0]
-                  for m in df["model"]]
+        display_labels = [display_model_name(model) for model in df["model"]]
+        colors = [model_color(model) for model in df["model"]]
 
         for ax, (col, label) in zip(axes, metrics):
             vals = df[col].tolist()
-            bars = ax.bar(df["model"], vals, color=colors, edgecolor="white", linewidth=0.8)
-            ax.set_title(label, fontsize=10, pad=8)
-            ax.set_ylabel(col)
+            bars = ax.bar(display_labels, vals, color=colors, edgecolor="none", width=0.72)
+            style_axes(ax)
+            add_title(ax, label)
+            ax.set_ylabel(label if col == "DirectionalAccuracy" else col)
             for bar, val in zip(bars, vals):
                 fmt = f"{val:.1%}" if col == "DirectionalAccuracy" else f"{val:.5f}"
-                ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() * 1.01,
-                        fmt, ha="center", va="bottom", fontsize=9)
+                offset = max(vals) * (0.018 if col != "DirectionalAccuracy" else 0.01)
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    bar.get_height() + offset,
+                    fmt,
+                    ha="center",
+                    va="bottom",
+                    fontsize=9,
+                )
             if col == "DirectionalAccuracy":
-                ax.axhline(0.5, color="red", linewidth=1, linestyle="--", label="Random (50%)")
-                ax.legend(fontsize=8)
-            ax.set_ylim(0, max(vals) * 1.2)
-            ax.tick_params(axis="x", rotation=20)
+                add_reference_line(ax, 0.5, "Random expectation (50%)")
+                ax.legend(frameon=False, fontsize=8.5, loc="upper right")
+                ax.set_ylim(0.0, max(vals) * 1.18)
+            else:
+                ax.set_ylim(0.0, max(vals) * 1.22)
+            ax.tick_params(axis="x", rotation=0, pad=6)
 
-        fig.suptitle("Model Comparison — Test Set (gray = persistence benchmark)", fontsize=12, y=1.02)
-        plt.tight_layout()
+        fig.suptitle("Model Comparison on the Held-Out Test Period", x=0.06, y=1.02, ha="left", fontsize=14, fontweight="bold")
+        fig.text(
+            0.06,
+            0.965,
+            "Benchmark and model errors are shown alongside directional accuracy on the same locked test split.",
+            ha="left",
+            fontsize=9.5,
+            color="#5B6B7C",
+        )
+        fig.tight_layout(rect=[0, 0, 1, 0.94])
         self._save(fig, "model_comparison")
 
     # ── 4. Feature importance ─────────────────────────────────────────────────
@@ -149,18 +219,19 @@ class Visualiser:
         if not available:
             logger.warning("No feature importance CSVs found — skipping plot.")
             return
-        fig, axes = plt.subplots(1, len(available), figsize=(8 * len(available), 6))
+        fig, axes = plt.subplots(1, len(available), figsize=(8.5 * len(available), 6))
         if len(available) == 1:
             axes = [axes]
         for ax, model_name in zip(axes, available):
             p = cfg.outputs_dir / f"{model_name}_feature_importance.csv"
             df = pd.read_csv(p).head(top_n).iloc[::-1]
-            ax.barh(df["feature"], df["importance"], color=PALETTE[0])
-            ax.set_title(f"{model_name.capitalize()} — Top {top_n} Features", fontsize=11)
+            ax.barh(df["feature"], df["importance"], color=model_color(model_name.replace("xgboost", "XGBoost").replace("lightgbm", "LightGBM")))
+            style_axes(ax, x_grid=True, y_grid=False)
+            add_title(ax, f"{model_name.capitalize()} Top {top_n} Features")
             ax.set_xlabel("Feature Importance")
 
-        fig.suptitle("Feature Importance Comparison", fontsize=13, y=1.01)
-        plt.tight_layout()
+        fig.suptitle("Feature Importance Comparison", x=0.06, y=1.01, ha="left", fontsize=14, fontweight="bold")
+        fig.tight_layout(rect=[0, 0, 1, 0.97])
         self._save(fig, "feature_importance")
 
     # ── 5. Predicted vs actual scatter ────────────────────────────────────────
@@ -172,27 +243,41 @@ class Visualiser:
         df = pd.read_parquet(pred_path)
 
         ml_models = [c for c in df.columns if c not in (_PREDICTION_META_COLS | {BASELINE_MODEL_NAME})]
-        fig, axes = plt.subplots(1, len(ml_models), figsize=(7 * len(ml_models), 5))
+        fig, axes = plt.subplots(1, len(ml_models), figsize=(7 * len(ml_models), 5.2))
         if len(ml_models) == 1:
             axes = [axes]
 
         for ax, model_name in zip(axes, ml_models):
             if model_name not in df.columns:
                 continue
-            ax.scatter(df["actual"], df[model_name], alpha=0.3, s=8,
-                       color=PALETTE[0], edgecolors="none")
+            style_axes(ax, x_grid=True, y_grid=True)
+            ax.scatter(
+                df["actual"],
+                df[model_name],
+                alpha=0.28,
+                s=12,
+                color=model_color(model_name),
+                edgecolors="none",
+            )
             lim = max(abs(df["actual"].quantile(0.01)),
                       abs(df["actual"].quantile(0.99))) * 1.1
-            ax.plot([-lim, lim], [-lim, lim], "r--", linewidth=1, label="Perfect prediction")
+            ax.plot(
+                [-lim, lim],
+                [-lim, lim],
+                linestyle=(0, (4, 3)),
+                linewidth=1.2,
+                color=REFERENCE,
+                label="Perfect agreement",
+            )
             ax.set_xlim(-lim, lim)
             ax.set_ylim(-lim, lim)
             ax.set_xlabel("Actual next-day return")
             ax.set_ylabel("Predicted next-day return")
-            ax.set_title(model_name, fontsize=11)
-            ax.legend(fontsize=8)
+            add_title(ax, model_name)
+            ax.legend(frameon=False, fontsize=8.5, loc="upper left")
 
-        fig.suptitle("Actual vs Predicted Next-Day Returns (Test Set)", fontsize=12, y=1.01)
-        plt.tight_layout()
+        fig.suptitle("Predicted vs Actual Next-Day Returns", x=0.06, y=1.01, ha="left", fontsize=14, fontweight="bold")
+        fig.tight_layout(rect=[0, 0, 1, 0.97])
         self._save(fig, "predictions_scatter")
 
     # ── 6. Interactive Plotly: sentiment over time ────────────────────────────
@@ -215,12 +300,11 @@ class Visualiser:
                 visible="legendonly" if ticker != df["ticker"].unique()[0] else True,
             ))
 
-        fig.update_layout(
-            title="Reddit VADER Sentiment — 7-day rolling average (Interactive)",
-            xaxis_title="Date",
-            yaxis_title="Sentiment Score",
-            hovermode="x unified",
-            template="plotly_white",
+        apply_plotly_layout(
+            fig,
+            "Reddit VADER Sentiment — 7-Day Rolling Mean",
+            "Date",
+            "Sentiment score",
             height=500,
         )
         fig.write_html(str(self.out / "sentiment_interactive.html"))
@@ -247,7 +331,7 @@ class Visualiser:
                 go.Scatter(
                     x=df["actual"], y=df[model_name],
                     mode="markers",
-                    marker=dict(size=4, opacity=0.4),
+                    marker=dict(size=4, opacity=0.42, color=model_color(model_name)),
                     name=model_name,
                 ),
                 row=1, col=i,
@@ -257,17 +341,19 @@ class Visualiser:
                 go.Scatter(
                     x=[-lim, lim], y=[-lim, lim],
                     mode="lines",
-                    line=dict(color="red", dash="dash"),
+                    line=dict(color=REFERENCE, dash="dash"),
                     name="Perfect",
                     showlegend=(i == 1),
                 ),
                 row=1, col=i,
             )
 
-        fig.update_layout(
-            title="Actual vs Predicted Returns — Test Set (Interactive)",
-            height=500,
-            template="plotly_white",
+        apply_plotly_layout(
+            fig,
+            "Actual vs Predicted Returns — Interactive View",
+            "Actual next-day return",
+            "Predicted next-day return",
+            height=520,
         )
         fig.write_html(str(self.out / "predictions_interactive.html"))
         logger.success(f"Saved interactive plot → {self.out / 'predictions_interactive.html'}")

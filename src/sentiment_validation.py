@@ -16,10 +16,14 @@ from loguru import logger
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from config import cfg
+from src.plot_style import FIG_DPI, POSITIVE, add_title, apply_chart_style
 
 
 _NEG_THRESHOLD = -0.05
 _POS_THRESHOLD = 0.05
+
+
+apply_chart_style(font_scale=1.0)
 
 
 class SentimentValidationReport:
@@ -82,11 +86,24 @@ class SentimentValidationReport:
         summary_path.write_text("\n".join(summary_lines))
         logger.success(f"Saved validation summary → {summary_path}")
 
-        fig, ax = plt.subplots(figsize=(5, 4))
-        sns.heatmap(confusion, annot=True, fmt="d", cmap="Greens", cbar=False, ax=ax)
-        ax.set_title("Manual vs VADER Sentiment Labels")
+        fig, ax = plt.subplots(figsize=(5.4, 4.4))
+        sns.heatmap(
+            confusion,
+            annot=True,
+            fmt="d",
+            cmap=sns.light_palette(POSITIVE, as_cmap=True),
+            cbar=False,
+            linewidths=1.0,
+            linecolor="white",
+            ax=ax,
+        )
+        add_title(
+            ax,
+            "Manual vs VADER Sentiment Labels",
+            "Counts are based on the reviewed sample committed in data/validation.",
+        )
         fig.tight_layout()
-        fig.savefig(self.out_dir / "sentiment_validation_confusion.png", dpi=150, bbox_inches="tight")
+        fig.savefig(self.out_dir / "sentiment_validation_confusion.png", dpi=FIG_DPI, bbox_inches="tight")
         plt.close(fig)
         logger.success(f"Saved plot → {self.out_dir / 'sentiment_validation_confusion.png'}")
 

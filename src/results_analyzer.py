@@ -29,10 +29,19 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from config import cfg
 from src.models import BASELINE_MODEL_NAME
+from src.plot_style import (
+    FIG_DPI,
+    POSITIVE,
+    add_reference_line,
+    add_title,
+    apply_chart_style,
+    display_model_name,
+    model_color,
+    style_axes,
+)
 
 
-sns.set_theme(style="darkgrid", context="notebook", font_scale=1.0)
-PALETTE = sns.color_palette("tab10")
+apply_chart_style(font_scale=1.0)
 _META_COLS = {"ticker", "date", "month", "actual"}
 
 
@@ -170,23 +179,43 @@ class ResultsAnalyzer:
             return
         df = stats_df.copy()
         order = df["model"].tolist()
+        display_labels = [display_model_name(model) for model in order]
         yerr = np.vstack(
             [
                 df["directional_accuracy"] - df["ci_lower"],
                 df["ci_upper"] - df["directional_accuracy"],
             ]
         )
-        colors = [PALETTE[2] if model == BASELINE_MODEL_NAME else PALETTE[0] for model in order]
-        fig, ax = plt.subplots(figsize=(9, 5))
-        bars = ax.bar(order, df["directional_accuracy"], color=colors, yerr=yerr, capsize=5)
-        ax.axhline(0.50, color="red", linestyle="--", linewidth=1, label="Random (50%)")
+        colors = [model_color(model) for model in order]
+        fig, ax = plt.subplots(figsize=(9.4, 5.4))
+        bars = ax.bar(
+            display_labels,
+            df["directional_accuracy"],
+            color=colors,
+            yerr=yerr,
+            capsize=5,
+            edgecolor="none",
+        )
+        style_axes(ax)
+        add_title(
+            ax,
+            "Directional Accuracy with 95% Confidence Intervals",
+            "Wilson intervals on the held-out test period.",
+        )
+        add_reference_line(ax, 0.50, "Random expectation (50%)")
         ax.set_ylim(0.40, max(float(df["ci_upper"].max()) + 0.03, 0.55))
         ax.set_ylabel("Directional Accuracy")
-        ax.set_title("Directional Accuracy with 95% Wilson Confidence Intervals")
-        ax.legend(fontsize=9)
+        ax.legend(frameon=False, fontsize=9)
         for bar, value in zip(bars, df["directional_accuracy"]):
-            ax.text(bar.get_x() + bar.get_width() / 2, value + 0.004, f"{value:.1%}", ha="center", va="bottom")
-        plt.xticks(rotation=20)
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                value + 0.004,
+                f"{value:.1%}",
+                ha="center",
+                va="bottom",
+                fontsize=9,
+            )
+        ax.tick_params(axis="x", rotation=0, pad=6)
         self._save(fig, "directional_accuracy_ci")
 
     def plot_ticker_directional_accuracy(self, ticker_df: pd.DataFrame, comparison_df: pd.DataFrame) -> None:
@@ -199,43 +228,82 @@ class ResultsAnalyzer:
         pivot = focus.pivot(index="ticker", columns="model", values="directional_accuracy")
         order = pivot[best_model].sort_values(ascending=False).index.tolist()
         pivot = pivot.loc[order]
-        fig, ax = plt.subplots(figsize=(11, 5))
+        fig, ax = plt.subplots(figsize=(11.3, 5.4))
         x = np.arange(len(pivot.index))
         width = 0.36
-        ax.bar(x - width / 2, pivot[BASELINE_MODEL_NAME], width=width, color=PALETTE[2], label=BASELINE_MODEL_NAME)
-        ax.bar(x + width / 2, pivot[best_model], width=width, color=PALETTE[0], label=best_model)
-        ax.axhline(0.50, color="red", linestyle="--", linewidth=1)
+        ax.bar(
+            x - width / 2,
+            pivot[BASELINE_MODEL_NAME],
+            width=width,
+            color=model_color(BASELINE_MODEL_NAME),
+            label=BASELINE_MODEL_NAME,
+            edgecolor="none",
+        )
+        ax.bar(
+            x + width / 2,
+            pivot[best_model],
+            width=width,
+            color=model_color(best_model),
+            label=best_model,
+            edgecolor="none",
+        )
+        style_axes(ax)
+        add_title(
+            ax,
+            f"Ticker-Level Directional Accuracy: {best_model} vs {BASELINE_MODEL_NAME}",
+            "Each bar pair is computed on the same test-period observations.",
+        )
+        add_reference_line(ax, 0.50)
         ax.set_xticks(x)
-        ax.set_xticklabels(pivot.index, rotation=30)
+        ax.set_xticklabels(pivot.index, rotation=25)
         ax.set_ylabel("Directional Accuracy")
-        ax.set_title(f"Ticker-Level Directional Accuracy: {best_model} vs {BASELINE_MODEL_NAME}")
-        ax.legend(fontsize=9)
-        plt.tight_layout()
+        ax.set_ylim(0.40, max(float(pivot.max().max()) + 0.04, 0.58))
+        ax.legend(frameon=False, fontsize=9, loc="upper right")
+        fig.tight_layout()
         self._save(fig, "ticker_directional_accuracy")
 
     def plot_monthly_directional_accuracy(self, monthly_df: pd.DataFrame) -> None:
         if monthly_df.empty:
             return
-        fig, ax = plt.subplots(figsize=(11, 5))
-        for idx, model in enumerate(monthly_df["model"].unique()):
+        fig, ax = plt.subplots(figsize=(11.2, 5.4))
+        style_axes(ax)
+        add_title(
+            ax,
+            "Monthly Directional Accuracy Stability",
+            "Performance is tracked month by month across the test period.",
+        )
+        for model in monthly_df["model"].unique():
             part = monthly_df[monthly_df["model"] == model].sort_values("month")
-            ax.plot(part["month"], part["directional_accuracy"], marker="o", linewidth=2, label=model, color=PALETTE[idx % len(PALETTE)])
-        ax.axhline(0.50, color="red", linestyle="--", linewidth=1)
+            ax.plot(
+                part["month"],
+                part["directional_accuracy"],
+                marker="o",
+                markersize=4.5,
+                linewidth=2.1,
+                label=model,
+                color=model_color(model),
+            )
+        add_reference_line(ax, 0.50, "Random expectation (50%)")
         ax.set_ylabel("Directional Accuracy")
         ax.set_xlabel("Test Month")
-        ax.set_title("Monthly Directional Accuracy Stability on the Test Period")
-        ax.legend(fontsize=9)
-        plt.xticks(rotation=30)
-        plt.tight_layout()
+        ax.set_ylim(0.40, max(float(monthly_df["directional_accuracy"].max()) + 0.05, 0.60))
+        ax.legend(frameon=False, fontsize=9, loc="upper right", ncol=2)
+        plt.xticks(rotation=35, ha="right")
+        fig.tight_layout()
         self._save(fig, "monthly_directional_accuracy")
 
     def plot_residual_distribution(self, pred_df: pd.DataFrame, comparison_df: pd.DataFrame) -> None:
         best_model = self._best_model_name(comparison_df, pred_df)
         residuals = pred_df[best_model] - pred_df["actual"]
-        fig, ax = plt.subplots(figsize=(9, 5))
-        sns.histplot(residuals, bins=40, kde=True, color=PALETTE[0], ax=ax)
-        ax.axvline(0, color="red", linestyle="--", linewidth=1)
-        ax.set_title(f"Residual Distribution for {best_model}")
+        fig, ax = plt.subplots(figsize=(9.2, 5.2))
+        sns.histplot(residuals, bins=36, kde=True, color=model_color(best_model), ax=ax, edgecolor="white", alpha=0.9)
+        style_axes(ax)
+        add_title(
+            ax,
+            f"Residual Distribution for {best_model}",
+            "Residuals are computed as predicted return minus realised next-day return.",
+        )
+        add_reference_line(ax, 0.0)
         ax.set_xlabel("Prediction Error (predicted - actual)")
         self._save(fig, "residual_distribution")
 
@@ -251,13 +319,22 @@ class ResultsAnalyzer:
         confusion.to_csv(self.out_dir / "direction_confusion.csv")
         logger.success(f"Saved evaluation table → {self.out_dir / 'direction_confusion.csv'}")
 
-        fig, ax = plt.subplots(figsize=(5, 4))
-        sns.heatmap(confusion, annot=True, fmt="d", cmap="Blues", cbar=False, ax=ax)
-        ax.set_title(f"Directional Confusion Matrix: {best_model}")
+        fig, ax = plt.subplots(figsize=(5.4, 4.4))
+        sns.heatmap(
+            confusion,
+            annot=True,
+            fmt="d",
+            cmap=sns.light_palette(POSITIVE, as_cmap=True),
+            cbar=False,
+            linewidths=1.0,
+            linecolor="white",
+            ax=ax,
+        )
+        add_title(ax, f"Directional Confusion Matrix: {best_model}")
         self._save(fig, "direction_confusion")
 
     def _save(self, fig: plt.Figure, name: str) -> None:
         path = self.out_dir / f"{name}.png"
-        fig.savefig(path, dpi=150, bbox_inches="tight")
+        fig.savefig(path, dpi=FIG_DPI, bbox_inches="tight")
         plt.close(fig)
         logger.success(f"Saved plot → {path}")
