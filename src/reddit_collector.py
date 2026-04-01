@@ -6,7 +6,7 @@ Real Reddit data collection only. No fake data.
 Sources (tried in order):
   1. Arctic Shift API  — free, no auth, real data 2020–present
   2. PullPush.io API   — backup mirror, real data 2020–present
-  3. PRAW              — Reddit official API, real data last 1 year
+  3. PRAW              — Reddit official API, optional recent-tail supplement
 
 If data is sparse for some periods, that is reported honestly.
 No fake rows are ever generated.
@@ -58,12 +58,13 @@ _MAX_RETRIES = 3
 class RedditCollector:
 
     def __init__(self):
-        cfg.validate()
-        self.reddit = praw.Reddit(
-            client_id=cfg.reddit_client_id,
-            client_secret=cfg.reddit_client_secret,
-            user_agent=cfg.reddit_user_agent,
-        )
+        self.reddit = None
+        if cfg.has_reddit_credentials:
+            self.reddit = praw.Reddit(
+                client_id=cfg.reddit_client_id,
+                client_secret=cfg.reddit_client_secret,
+                user_agent=cfg.reddit_user_agent,
+            )
         self.out_dir = cfg.data_raw / "reddit"
         self.out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -106,13 +107,16 @@ class RedditCollector:
 
         # ── Recent: PRAW ──────────────────────────────────────────────────────
         # PRAW only fetches limit=1000, which cannot fill large gaps, so it serves
-        # purely as an extreme recent-tail supplement for real-time models.
-        if end_dt >= cutoff:
-            logger.info(f"\n[PRAW] {max(start_dt, cutoff)} → {end_dt} supplementing tail")
+        # purely as an optional recent-tail supplement inside the configured window.
+        if end_dt >= cutoff and self.reddit is not None:
+            praw_start = max(start_dt, cutoff)
+            logger.info(f"\n[PRAW] {praw_start} → {end_dt} supplementing tail")
             for sub in cfg.subreddits:
-                df = self._praw_pull(sub, ticker_set, force)
+                df = self._praw_pull(sub, ticker_set, str(praw_start), str(end_dt), force)
                 if df is not None and len(df):
                     frames.append(df)
+        elif end_dt >= cutoff and self.reddit is None:
+            logger.info("Skipping PRAW tail supplement because Reddit API credentials are not configured.")
 
         # ── Combine ───────────────────────────────────────────────────────────
         if not frames:
@@ -125,6 +129,7 @@ class RedditCollector:
             .sort_values("created_utc")
             .reset_index(drop=True)
         )
+        combined = self._clip_to_window(combined, start_dt, end_dt)
         combined = self._quality_filter(combined)
 
         # ── Honest coverage report ────────────────────────────────────────────
@@ -214,24 +219,35 @@ class RedditCollector:
 
     # ── PRAW ──────────────────────────────────────────────────────────────────
 
-    def _praw_pull(self, subreddit, ticker_set, force):
-        cache = self.out_dir / f"praw_{subreddit}.parquet"
+    def _praw_pull(self, subreddit, ticker_set, start, end, force):
+        cache = self.out_dir / f"praw_{subreddit}_{start}_{end}.parquet"
         if cache.exists() and not force:
             return pd.read_parquet(cache)
 
+        start_ts = int(
+            datetime.strptime(start, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp()
+        )
+        end_ts = int(
+            (datetime.strptime(end, "%Y-%m-%d") + timedelta(days=1))
+            .replace(tzinfo=timezone.utc)
+            .timestamp()
+        )
         rows = []
         sub = self.reddit.subreddit(subreddit)
         logger.info(f"  PRAW → r/{subreddit}")
         try:
             for listing in (sub.hot(limit=1000), sub.new(limit=1000), sub.top("year", limit=500)):
                 for post in listing:
+                    created_utc = int(getattr(post, "created_utc", 0))
+                    if created_utc < start_ts or created_utc >= end_ts:
+                        continue
                     mentions = self._find_tickers(post.title + " " + (post.selftext or ""), ticker_set)
                     if not mentions:
                         continue
                     rows.append({
                         "id": post.id, "subreddit": str(post.subreddit),
                         "type": "post", "author": str(post.author),
-                        "created_utc": int(post.created_utc),
+                        "created_utc": created_utc,
                         "title": post.title or "", "body": post.selftext or "",
                         "score": post.score,
                         "ticker_mentions": ",".join(sorted(mentions)),
@@ -241,12 +257,15 @@ class RedditCollector:
                     try:
                         post.comments.replace_more(limit=0)
                         for c in list(post.comments)[:50]:
+                            comment_created = int(getattr(c, "created_utc", 0))
+                            if comment_created < start_ts or comment_created >= end_ts:
+                                continue
                             cm = self._find_tickers(c.body or "", ticker_set)
                             if cm:
                                 rows.append({
                                     "id": c.id, "subreddit": subreddit,
                                     "type": "comment", "author": str(c.author),
-                                    "created_utc": int(c.created_utc),
+                                    "created_utc": comment_created,
                                     "title": "", "body": c.body or "",
                                     "score": c.score,
                                     "ticker_mentions": ",".join(sorted(cm)),
@@ -260,6 +279,11 @@ class RedditCollector:
 
         df = self._to_df(rows)
         if len(df):
+            df = self._clip_to_window(
+                df,
+                datetime.strptime(start, "%Y-%m-%d").date(),
+                datetime.strptime(end, "%Y-%m-%d").date(),
+            )
             df.to_parquet(cache, index=False)
         return df
 
@@ -316,6 +340,21 @@ class RedditCollector:
         df = df[~df["raw_text"].str.lower().isin(["[deleted]", "[removed]"])]
         logger.info(f"Quality filter: {before:,} → {len(df):,} rows")
         return df.reset_index(drop=True)
+
+    @staticmethod
+    def _clip_to_window(df: pd.DataFrame, start_dt, end_dt) -> pd.DataFrame:
+        if df.empty:
+            return df
+        start_ts = int(datetime.combine(start_dt, datetime.min.time(), tzinfo=timezone.utc).timestamp())
+        end_ts = int(
+            datetime.combine(end_dt + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc).timestamp()
+        )
+        clipped = df.copy()
+        clipped["created_utc"] = pd.to_numeric(clipped["created_utc"], errors="coerce")
+        clipped = clipped[
+            clipped["created_utc"].between(start_ts, end_ts - 1, inclusive="both")
+        ]
+        return clipped.reset_index(drop=True)
 
     # ── Honest coverage report ────────────────────────────────────────────────
 

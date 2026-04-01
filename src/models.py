@@ -8,7 +8,7 @@ Trains and evaluates three models:
   3. LightGBM        — leaf-wise gradient boosting
 
 FIXES vs v1:
-  - Added naive baseline model (ChatGPT correctly flagged this gap)
+  - Added naive baseline model
   - LightGBM early stopping uses VALIDATION set (not test set — was data leakage)
   - XGBoost eval_set also uses validation set
   - Directional accuracy added as classification metric
@@ -53,18 +53,21 @@ def evaluate(name: str, y_true: np.ndarray, y_pred: np.ndarray) -> Dict:
 
 def build_xgboost() -> xgb.XGBRegressor:
     return xgb.XGBRegressor(
-        n_estimators=600,
-        learning_rate=0.05,
-        max_depth=6,
-        subsample=0.8,
-        colsample_bytree=0.7,
+        n_estimators=1000,
+        learning_rate=0.03,
+        max_depth=5,
+        min_child_weight=5,
+        subsample=0.85,
+        colsample_bytree=0.75,
+        gamma=0.0,
         reg_alpha=0.1,
-        reg_lambda=1.0,
+        reg_lambda=1.5,
         random_state=cfg.random_state,
         n_jobs=-1,
         tree_method="hist",
         verbosity=0,
-        early_stopping_rounds=50,
+        objective="reg:squarederror",
+        early_stopping_rounds=75,
     )
 
 
@@ -72,12 +75,13 @@ def build_lightgbm() -> lgb.LGBMRegressor:
     return lgb.LGBMRegressor(
         n_estimators=600,
         learning_rate=0.05,
-        max_depth=6,
-        num_leaves=63,
-        subsample=0.8,
-        colsample_bytree=0.7,
-        reg_alpha=0.1,
-        reg_lambda=1.0,
+        max_depth=5,
+        num_leaves=31,
+        min_child_samples=50,
+        subsample=0.9,
+        colsample_bytree=0.85,
+        reg_alpha=0.2,
+        reg_lambda=2.0,
         random_state=cfg.random_state,
         n_jobs=-1,
         verbose=-1,

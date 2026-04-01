@@ -10,6 +10,8 @@ import numpy as np
 from pathlib import Path
 from datetime import datetime
 
+from config import cfg
+
 _ROOT = Path(__file__).resolve().parent
 outputs = _ROOT / "outputs"
 data_processed = _ROOT / "data" / "processed"
@@ -47,7 +49,8 @@ try:
           f"{str(row['max_date'].date()):<14} {row['trading_days']:>8,}  {row['years']:>5.1f}yr")
     w()
     w(f"  Total tickers     : {len(coverage)}")
-    w(f"  Study period      : {coverage['min_date'].min().date()} → {coverage['max_date'].max().date()}")
+    w(f"  Configured window : {cfg.start_date} → {cfg.end_date}")
+    w(f"  Market data span  : {coverage['min_date'].min().date()} → {coverage['max_date'].max().date()}")
     w(f"  Avg trading days  : {coverage['trading_days'].mean():.0f} per ticker")
 except Exception as e:
     w(f"  Market data not found: {e}")
@@ -62,8 +65,11 @@ try:
     reddit["date"] = pd.to_datetime(reddit["date"])
     span = (reddit["date"].max() - reddit["date"].min()).days / 365.25
     w(f"  Total posts/comments : {len(reddit):,}")
-    w(f"  Date range           : {reddit['date'].min().date()} → {reddit['date'].max().date()}")
+    w(f"  Configured window    : {cfg.start_date} → {cfg.end_date}")
+    w(f"  Collected range      : {reddit['date'].min().date()} → {reddit['date'].max().date()}")
     w(f"  Span                 : {span:.1f} years")
+    in_window = reddit["date"].between(pd.Timestamp(cfg.start_date), pd.Timestamp(cfg.end_date))
+    w(f"  Rows in window       : {int(in_window.sum()):,} / {len(reddit):,}")
     if "source" in reddit.columns:
         w()
         w("  Source breakdown:")
@@ -104,11 +110,15 @@ try:
     baseline_da = comp[comp["model"] == "Naive Baseline"]["DirectionalAccuracy"].values[0]
     ml_comp = comp[comp["model"] != "Naive Baseline"]
     best_ml_da_idx = ml_comp["DirectionalAccuracy"].idxmax()
+    best_model = comp.loc[best_ml_da_idx, "model"]
+    best_da = comp.loc[best_ml_da_idx, "DirectionalAccuracy"]
+    best_gain = best_da - baseline_da
 
     w()
-    w(f"  Random guess (baseline) : {baseline_da:.1%}")
-    w(f"  Best model              : {comp.loc[best_ml_da_idx, 'model']}")
-    w(f"  Best directional acc    : {comp.loc[best_ml_da_idx, 'DirectionalAccuracy']:.1%}")
+    w(f"  Naive baseline DA       : {baseline_da:.1%}")
+    w(f"  Best model              : {best_model}")
+    w(f"  Best directional acc    : {best_da:.1%}")
+    w(f"  Gain vs baseline        : {best_gain:+.1%}")
 except Exception as e:
     w(f"  Model comparison not found: {e}")
 
@@ -120,6 +130,7 @@ w("-" * 70)
 try:
     comp = pd.read_csv(outputs / "model_comparison.csv")
     ml = comp[comp["model"] != "Naive Baseline"]
+    baseline_da = comp[comp["model"] == "Naive Baseline"]["DirectionalAccuracy"].values[0]
 
     for _, row in ml.iterrows():
         w()
@@ -127,31 +138,34 @@ try:
         da = row["DirectionalAccuracy"]
         mae = row["MAE"]
         rmse = row["RMSE"]
+        gain = da - baseline_da
 
-        # Strengths
-        if da > 0.65:
-            w(f"    STRENGTH: High directional accuracy ({da:.1%}) — strong up/down signal.")
-        elif da > 0.55:
-            w(f"    STRENGTH: Good directional accuracy ({da:.1%}) — above random guess.")
+        if gain > 0:
+            w(f"    STRENGTH: Directional accuracy improves on the naive baseline by {gain:.1%}.")
+        else:
+            w(f"    WEAKNESS: Directional accuracy is {abs(gain):.1%} below the naive baseline.")
 
         if mae < 0.02:
-            w(f"    STRENGTH: Low MAE ({mae:.5f}) — predictions close to actual values.")
+            w(f"    STRENGTH: Low MAE ({mae:.5f}) relative to daily move size.")
 
-        # Weaknesses
-        if rmse / mae > 1.5:
-            w(f"    WEAKNESS: RMSE ({rmse:.5f}) >> MAE ({mae:.5f}) — occasional large errors on volatile days.")
+        if rmse / max(mae, 1e-9) > 1.5:
+            w(f"    WEAKNESS: RMSE ({rmse:.5f}) is much larger than MAE ({mae:.5f}) — errors widen on volatile days.")
 
-        if da < 0.70:
-            w(f"    WEAKNESS: Still misses direction {(1-da):.1%} of the time — not suitable for live trading alone.")
+        w(f"    CONTEXT: The model still gets direction wrong {(1-da):.1%} of the time.")
 
     w()
     w("  OVERALL OBSERVATIONS:")
-    w("    • Both ML models significantly outperform the naive baseline.")
-    w("    • Reddit sentiment (mention_count, vader_mean) appears in top features")
-    w("      of both models — confirming Reddit chatter has predictive signal.")
-    w("    • MACD, volume, and price momentum features also highly important.")
-    w("    • Models are conservative — predictions cluster near 0% move,")
-    w("      reflecting the difficulty of predicting exact magnitude.")
+    best_row = ml.loc[ml["DirectionalAccuracy"].idxmax()]
+    w(
+        f"    • Best observed directional accuracy is {best_row['DirectionalAccuracy']:.1%} "
+        f"from {best_row['model']}."
+    )
+    w(
+        f"    • That represents a {best_row['DirectionalAccuracy'] - baseline_da:+.1%} lift "
+        "over the naive benchmark on this test split."
+    )
+    w("    • Treat feature importance as in-sample association, not proof of causal predictive signal.")
+    w("    • Predictions remain close to zero on many days, which is typical for next-day return regression.")
 
 except Exception as e:
     w(f"  Could not generate analysis: {e}")

@@ -4,6 +4,7 @@ All paths, constants, and environment variables resolved here.
 """
 
 import os
+from datetime import datetime
 from dataclasses import dataclass, field
 from pathlib import Path
 from dotenv import load_dotenv
@@ -88,17 +89,29 @@ class Config:
         for p in (self.data_raw, self.data_processed, self.models_dir, self.outputs_dir):
             p.mkdir(parents=True, exist_ok=True)
 
-    def validate(self):
+    @property
+    def has_reddit_credentials(self) -> bool:
+        return bool(self.reddit_client_id and self.reddit_client_secret)
+
+    def validate(self, require_reddit_credentials: bool = False):
         missing = []
-        if not self.reddit_client_id:
+        if require_reddit_credentials and not self.reddit_client_id:
             missing.append("REDDIT_CLIENT_ID")
-        if not self.reddit_client_secret:
+        if require_reddit_credentials and not self.reddit_client_secret:
             missing.append("REDDIT_CLIENT_SECRET")
         if missing:
             raise EnvironmentError(
                 f"Missing required environment variables: {missing}\n"
                 "Copy .env.example → .env and fill in your credentials."
             )
+        start_dt = datetime.strptime(self.start_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(self.end_date, "%Y-%m-%d")
+        if start_dt > end_dt:
+            raise EnvironmentError(
+                f"Invalid study window: START_DATE={self.start_date} is after END_DATE={self.end_date}."
+            )
+        if self.top_n_tickers <= 0:
+            raise EnvironmentError("TOP_N_TICKERS must be a positive integer.")
 
 
 cfg = Config()

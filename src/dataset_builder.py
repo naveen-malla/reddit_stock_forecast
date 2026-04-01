@@ -31,6 +31,7 @@ _EXCLUDE_COLS = {
     "macd", "macd_signal", "macd_hist",
     "log_volume", "volume_ma20",
 }
+_DATASET_CACHE_VERSION = "2"
 
 
 class DatasetBuilder:
@@ -52,12 +53,16 @@ class DatasetBuilder:
         Val set is 10% of training data, used for early stopping only.
         """
         cache = cfg.data_processed / "model_dataset.parquet"
-        if cache.exists() and not force:
+        version_path = cfg.data_processed / "model_dataset.version"
+        cache_version = version_path.read_text().strip() if version_path.exists() else None
+
+        if cache.exists() and not force and cache_version == _DATASET_CACHE_VERSION:
             logger.debug("Dataset cache hit.")
             df = pd.read_parquet(cache)
         else:
             df = self._merge(market_df, sentiment_df)
             df.to_parquet(cache, index=False)
+            version_path.write_text(_DATASET_CACHE_VERSION)
             logger.success(f"Model dataset saved → {cache}  shape={df.shape}")
 
         return self._split(df)
@@ -114,15 +119,82 @@ class DatasetBuilder:
         else:
             merged = market_df.copy()
 
-        return merged.dropna(subset=[cfg.target_col]).reset_index(drop=True)
+        merged = merged.dropna(subset=[cfg.target_col]).reset_index(drop=True)
+        merged = self._engineer_features(merged)
+        merged = merged.replace([np.inf, -np.inf], np.nan)
+        return merged.reset_index(drop=True)
+
+    def _engineer_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        df = df.sort_values(["ticker", "date"]).reset_index(drop=True).copy()
+        df["date"] = pd.to_datetime(df["date"])
+
+        df["dow"] = df["date"].dt.dayofweek
+        df["month"] = df["date"].dt.month
+        df["quarter"] = df["date"].dt.quarter
+        df["is_month_start"] = df["date"].dt.is_month_start.astype(int)
+        df["is_month_end"] = df["date"].dt.is_month_end.astype(int)
+
+        ticker_dummies = pd.get_dummies(df["ticker"], prefix="ticker", dtype=np.int8)
+        df = pd.concat([df, ticker_dummies], axis=1)
+
+        close_denom = df["close"].replace(0, np.nan).abs()
+        df["intraday_return"] = (df["close"] - df["open"]) / (df["open"].replace(0, np.nan).abs())
+        df["range_pct"] = (df["high"] - df["low"]) / close_denom
+        df["close_to_high_pct"] = (df["high"] - df["close"]) / close_denom
+        df["close_to_low_pct"] = (df["close"] - df["low"]) / close_denom
+        df["ret_1d_abs"] = df["ret_1d"].abs()
+
+        ticker_groups = df.groupby("ticker", group_keys=False)
+        df["ret_1d_mean_20"] = ticker_groups["ret_1d"].transform(
+            lambda s: s.rolling(20, min_periods=5).mean()
+        )
+        df["ret_1d_std_20"] = ticker_groups["ret_1d"].transform(
+            lambda s: s.rolling(20, min_periods=5).std()
+        )
+        df["ret_5d_mean_20"] = ticker_groups["ret_5d"].transform(
+            lambda s: s.rolling(20, min_periods=5).mean()
+        )
+
+        sentiment_cols = [
+            col
+            for col in [
+                "mention_count",
+                "vader_mean",
+                "vader_weighted_mean",
+                "vader_pos_ratio",
+                "vader_w3d_mean",
+                "vader_w7d_mean",
+            ]
+            if col in df.columns
+        ]
+        for col in sentiment_cols:
+            df[f"{col}_ma5"] = ticker_groups[col].transform(
+                lambda s: s.rolling(5, min_periods=1).mean()
+            )
+            df[f"{col}_ma20"] = ticker_groups[col].transform(
+                lambda s: s.rolling(20, min_periods=1).mean()
+            )
+            df[f"{col}_shock"] = df[col] - df[f"{col}_ma20"]
+
+        if "mention_count_ma20" in df.columns:
+            df["mention_surge"] = (df["mention_count"] - df["mention_count_ma20"]) / (
+                df["mention_count_ma20"] + 1
+            )
+
+        sentiment_anchor = "vader_weighted_mean" if "vader_weighted_mean" in df.columns else "vader_mean"
+        if sentiment_anchor in df.columns:
+            df["sentiment_x_volume"] = df[sentiment_anchor] * df["volume_ratio"]
+            df["sentiment_x_ret1d"] = df[sentiment_anchor] * df["ret_1d"]
+
+        return df
 
     def _split(
         self, df: pd.DataFrame
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, List[str]]:
         """
-        Chronological split per ticker, then pooled.
+        Global chronological split across the pooled panel.
         Train: first 70% | Val: next 10% | Test: last 20%
-        This prevents future ticker data leaking into earlier ticker training.
+        This prevents any test-period dates leaking into model fitting.
         """
         feature_cols = sorted([
             c for c in df.columns
@@ -164,4 +236,3 @@ class DatasetBuilder:
         )
 
         return X_train, X_val, X_test, y_train, y_val, y_test, feature_cols
-

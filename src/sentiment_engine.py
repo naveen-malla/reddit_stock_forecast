@@ -5,7 +5,7 @@ Scores every Reddit post/comment with two sentiment signals:
 
   1. VADER  – rule-based, fast, optimised for social-media text.
   2. FinBERT (optional) – transformer fine-tuned on financial language.
-              Disabled automatically if torch/GPU is unavailable.
+              Loaded only when explicitly requested.
 
 FIXES vs v1:
   - FinBERT uses GPU when available via torch.cuda.is_available()
@@ -41,12 +41,14 @@ except ImportError:
 class SentimentEngine:
     """Scores Reddit text and returns per-(ticker, date) aggregated features."""
 
-    def __init__(self, use_finbert: bool = True, batch_size: int = 64):
+    def __init__(self, use_finbert: bool = False, batch_size: int = 64):
         self.vader = SentimentIntensityAnalyzer()
         self.use_finbert = use_finbert and _FINBERT_AVAILABLE
         self.batch_size = batch_size
         self._finbert_model = None
         self._finbert_tok = None
+        if use_finbert and not _FINBERT_AVAILABLE:
+            logger.warning("FinBERT requested but torch/transformers are unavailable. Falling back to VADER only.")
         # FIX: detect device for FinBERT — guard against torch not being installed
         if _FINBERT_AVAILABLE:
             import torch as _torch
@@ -206,4 +208,3 @@ class SentimentEngine:
             f"vader_{label}_count",
         ]
         return rolled.reset_index().drop_duplicates("date", keep="last")
-

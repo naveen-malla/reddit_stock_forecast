@@ -4,12 +4,13 @@ run_pipeline.py
 ───────────────
 End-to-end pipeline runner.  Execute from the project root:
 
-    python run_pipeline.py [--force] [--skip-reddit] [--skip-sentiment]
+    python run_pipeline.py [--force] [--skip-reddit] [--skip-sentiment] [--use-finbert]
 
 Flags:
   --force           Re-download / re-compute everything (ignore caches).
   --skip-reddit     Use cached Reddit data (useful during model iterations).
   --skip-sentiment  Skip sentiment scoring; uses only market features.
+  --use-finbert     Enable optional FinBERT scoring (downloads model if not cached).
 
 Exit codes:
   0 — success
@@ -17,10 +18,10 @@ Exit codes:
   2 — runtime error
 
 Pipeline stages:
-  1. Validate configuration & credentials
+  1. Validate configuration
   2. Select top-10 tickers by trading volume
-  3. Collect Reddit posts/comments (PRAW + Pushshift)
-  4. Score text with VADER (+ FinBERT if available)
+  3. Collect Reddit posts/comments (archive APIs + optional PRAW supplement)
+  4. Score text with VADER (+ optional FinBERT)
   5. Fetch OHLCV data and engineer market features
   6. Merge, lag, and split the modelling dataset
   7. Train Naive Baseline, XGBoost, LightGBM; evaluate and compare
@@ -51,6 +52,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--force", action="store_true", help="Ignore all caches and recompute")
     p.add_argument("--skip-reddit", action="store_true", help="Skip Reddit collection")
     p.add_argument("--skip-sentiment", action="store_true", help="Skip sentiment scoring")
+    p.add_argument(
+        "--use-finbert",
+        action="store_true",
+        help="Enable optional FinBERT scoring (downloads model if not cached)",
+    )
     return p.parse_args()
 
 
@@ -69,7 +75,10 @@ def main() -> int:
     logger.info("  Reddit Equity Forecast Pipeline  v2.0")
     logger.info(f"  Study window : {cfg.start_date} → {cfg.end_date}")
     logger.info(f"  Top-N tickers: {cfg.top_n_tickers}")
+    logger.info(f"  FinBERT      : {'enabled' if args.use_finbert else 'disabled'}")
     logger.info("=" * 60)
+    if not args.skip_reddit and not cfg.has_reddit_credentials:
+        logger.info("  Reddit credentials not found — running archive-only collection without PRAW.")
 
     try:
         # ── 2. Ticker selection ───────────────────────────────────────────────
@@ -90,28 +99,49 @@ def main() -> int:
             logger.success(f"  Reddit rows collected: {len(reddit_df):,}")
         else:
             raw_path = cfg.data_raw / "reddit_raw.parquet"
+            sent_path = cfg.data_processed / "sentiment_daily.parquet"
             if raw_path.exists():
                 import pandas as pd
+                from datetime import datetime
+                from src.reddit_collector import RedditCollector
+
                 reddit_df = pd.read_parquet(raw_path)
-                logger.info(f"  Loaded cached Reddit data: {len(reddit_df):,} rows")
+                start_dt = datetime.strptime(cfg.start_date, "%Y-%m-%d").date()
+                end_dt = datetime.strptime(cfg.end_date, "%Y-%m-%d").date()
+                raw_rows = len(reddit_df)
+                reddit_df = RedditCollector._clip_to_window(reddit_df, start_dt, end_dt)
+                if len(reddit_df) != raw_rows:
+                    reddit_df.to_parquet(raw_path, index=False)
+                logger.info(
+                    f"  Loaded cached Reddit data: {len(reddit_df):,} rows "
+                    f"(clipped from {raw_rows:,} to the configured window)"
+                )
+                if reddit_df.empty:
+                    logger.warning("  Cached Reddit data has no rows inside the configured window.")
+            elif sent_path.exists():
+                logger.warning("  No cached Reddit data found. Will reuse cached sentiment aggregates.")
             else:
-                logger.warning("  No cached Reddit data found. Running without sentiment.")
+                logger.warning("  No cached Reddit or sentiment data found. Running without sentiment.")
                 args.skip_sentiment = True
 
         # ── 4. Sentiment scoring ──────────────────────────────────────────────
         sentiment_df = None
-        if not args.skip_sentiment and reddit_df is not None and len(reddit_df):
+        if args.skip_sentiment:
+            logger.info("\n[Stage 4] Sentiment scoring skipped — using market features only.")
+        elif reddit_df is not None and len(reddit_df):
             logger.info("\n[Stage 4] Scoring sentiment …")
             from src.sentiment_engine import SentimentEngine
-            se = SentimentEngine(use_finbert=True)
+            se = SentimentEngine(use_finbert=args.use_finbert)
             sentiment_df = se.score_and_aggregate(reddit_df)
             logger.success(f"  Sentiment rows: {len(sentiment_df):,}")
-        else:
+        elif args.skip_reddit and reddit_df is None:
             sent_path = cfg.data_processed / "sentiment_daily.parquet"
             if sent_path.exists():
                 import pandas as pd
                 sentiment_df = pd.read_parquet(sent_path)
                 logger.info(f"  Loaded cached sentiment: {len(sentiment_df):,} rows")
+        else:
+            logger.warning("  No Reddit rows available for sentiment scoring. Continuing with market features only.")
 
         # ── 5. Market data & features ─────────────────────────────────────────
         logger.info("\n[Stage 5] Fetching OHLCV data and engineering market features …")
