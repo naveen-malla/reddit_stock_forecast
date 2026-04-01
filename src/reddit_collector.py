@@ -64,6 +64,7 @@ class RedditCollector:
                 client_id=cfg.reddit_client_id,
                 client_secret=cfg.reddit_client_secret,
                 user_agent=cfg.reddit_user_agent,
+                timeout=20,
             )
         self.out_dir = cfg.data_raw / "reddit"
         self.out_dir.mkdir(parents=True, exist_ok=True)
