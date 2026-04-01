@@ -1,0 +1,14 @@
+SENTIMENT VALIDATION SUMMARY
+================================================
+Sample size          : 36
+Agreement            : 55.6%
+Negative support     : 16
+Neutral support      : 10
+Positive support     : 10
+
+Confusion Matrix (manual rows x VADER columns)
+VADER     negative  neutral  positive
+Manual                               
+negative        12        2         2
+neutral          3        2         5
+positive         1        3         6

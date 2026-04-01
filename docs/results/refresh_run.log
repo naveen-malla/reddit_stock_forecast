@@ -1,0 +1,62 @@
+2026-04-01 23:48:52.439 | INFO     | src.sentiment_engine:score_and_aggregate:76 - Scoring 11,496 Reddit items …
+2026-04-01 23:48:52.462 | INFO     | src.sentiment_engine:score_and_aggregate:80 -   Running VADER …
+2026-04-01 23:49:11.213 | INFO     | src.sentiment_engine:score_and_aggregate:87 -   FinBERT disabled — using VADER only.
+2026-04-01 23:49:11.311 | SUCCESS  | src.sentiment_engine:score_and_aggregate:92 - Scored data → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/data/processed/reddit_scored.parquet
+2026-04-01 23:49:12.084 | SUCCESS  | src.sentiment_engine:score_and_aggregate:97 - Daily sentiment → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/data/processed/sentiment_daily.parquet  shape=(4689, 18)
+2026-04-01 23:49:12.085 | DEBUG    | src.ticker_selector:volume_ranking_df:38 - Volume ranking cache hit: /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/data/processed/volume_ranking.parquet
+2026-04-01 23:49:12.111 | DEBUG    | src.market_data:fetch_and_engineer:46 - Market features cache hit: /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/data/processed/market_features.parquet
+2026-04-01 23:49:12.117 | DEBUG    | src.dataset_builder:build:63 - Dataset cache hit.
+2026-04-01 23:49:12.143 | INFO     | src.dataset_builder:_split:256 - Split sizes — Train: (8770, 73)  Val: (1250, 73)  Test: (2510, 73)  Features: 73
+2026-04-01 23:49:12.578 | SUCCESS  | src.visualiser:_save:278 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/volume_ranking.png
+2026-04-01 23:49:13.875 | SUCCESS  | src.visualiser:_save:278 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/sentiment_timeseries.png
+2026-04-01 23:49:14.133 | SUCCESS  | src.visualiser:_save:278 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/model_comparison.png
+2026-04-01 23:49:14.492 | SUCCESS  | src.visualiser:_save:278 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/feature_importance.png
+2026-04-01 23:49:14.940 | SUCCESS  | src.visualiser:_save:278 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/predictions_scatter.png
+2026-04-01 23:49:15.248 | SUCCESS  | src.visualiser:plot_interactive_sentiment:226 - Saved interactive plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/sentiment_interactive.html
+2026-04-01 23:49:15.322 | SUCCESS  | src.visualiser:plot_interactive_predictions:272 - Saved interactive plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/predictions_interactive.html
+2026-04-01 23:49:15.328 | SUCCESS  | src.results_analyzer:save_directional_accuracy_stats:133 - Saved evaluation table → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/directional_accuracy_stats.csv
+2026-04-01 23:49:15.339 | SUCCESS  | src.results_analyzer:save_ticker_metrics:147 - Saved evaluation table → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/ticker_model_metrics.csv
+2026-04-01 23:49:15.356 | SUCCESS  | src.results_analyzer:save_monthly_metrics:164 - Saved evaluation table → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/monthly_model_metrics.csv
+2026-04-01 23:49:15.459 | SUCCESS  | src.results_analyzer:_save:262 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/directional_accuracy_ci.png
+2026-04-01 23:49:15.623 | SUCCESS  | src.results_analyzer:_save:262 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/ticker_directional_accuracy.png
+2026-04-01 23:49:15.830 | SUCCESS  | src.results_analyzer:_save:262 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/monthly_directional_accuracy.png
+2026-04-01 23:49:15.985 | SUCCESS  | src.results_analyzer:_save:262 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/residual_distribution.png
+2026-04-01 23:49:15.990 | SUCCESS  | src.results_analyzer:plot_direction_confusion:251 - Saved evaluation table → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/direction_confusion.csv
+2026-04-01 23:49:16.055 | SUCCESS  | src.results_analyzer:_save:262 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/direction_confusion.png
+2026-04-01 23:49:16.144 | SUCCESS  | src.sentiment_validation:generate:59 - Saved validation sample → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/sentiment_validation_sample.csv
+2026-04-01 23:49:16.148 | SUCCESS  | src.sentiment_validation:generate:83 - Saved validation summary → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/sentiment_validation_summary.txt
+2026-04-01 23:49:16.232 | SUCCESS  | src.sentiment_validation:generate:91 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/sentiment_validation_confusion.png
+Report saved → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/model_analysis.txt
+
+Preview:
+======================================================================
+  REDDIT EQUITY FORECAST — MODEL ANALYSIS REPORT
+  Generated: 2026-04-01 23:49
+======================================================================
+
+1. DATASET COVERAGE
+----------------------------------------------------------------------
+  Ticker   From           To                 Days   Years
+  ------------------------------------------------------
+  AAPL     2021-01-04     2025-12-29        1,253    5.0yr
+  AMZN     2021-01-04     2025-12-29        1,253    5.0yr
+  INTC     2021-01-04     2025-12-29        1,253    5.0yr
+  NFLX     2021-01-04     2025-12-29        1,253    5.0yr
+  NIO      2021-01-04     2025-12-29        1,253    5.0yr
+  NVDA     2021-01-04     2025-12-29        1,253    5.0yr
+  PLTR     2021-01-04     2025-12-29        1,253    5.0yr
+  QQQ      2021-01-04     2025-12-29        1,253    5.0yr
+  SPY      2021-01-04     2025-12-29        1,253    5.0yr
+  TSLA     2021-01-04     2025-12-29        1,253    5.0yr
+
+  Total tickers     : 10
+  Configured window : 2021-01-01 → 2025-12-31
+  Market data span  : 2021-01-04 → 2025-12-29
+  Avg trading days  : 1253 per ticker
+
+2. REDDIT DATA COVERAGE
+----------------------------------------------------------------------
+  Total posts/comments : 11,496
+  Configured window    : 2021-01-01 → 2025-12-31
+  Collected range      : 2021-01-01 → 2025-12-31
+thesis outputs refreshed

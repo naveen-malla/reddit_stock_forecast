@@ -122,9 +122,59 @@ try:
 except Exception as e:
     w(f"  Model comparison not found: {e}")
 
-# ── 5. Strengths & Weaknesses ─────────────────────────────────────────────────
+# ── 5. Directional Confidence Intervals ───────────────────────────────────────
 w()
-w("5. STRENGTHS & WEAKNESSES")
+w("5. DIRECTIONAL ACCURACY CONFIDENCE INTERVALS")
+w("-" * 70)
+
+try:
+    stats = pd.read_csv(outputs / "directional_accuracy_stats.csv")
+    w(f"  {'Model':<20} {'DA':>10} {'95% CI Lower':>14} {'95% CI Upper':>14}")
+    w("  " + "-" * 62)
+    for _, row in stats.iterrows():
+        w(
+            f"  {row['model']:<20} {row['directional_accuracy']:>9.1%} "
+            f"{row['ci_lower']:>13.1%} {row['ci_upper']:>13.1%}"
+        )
+except Exception as e:
+    w(f"  Directional confidence intervals not found: {e}")
+
+# ── 6. Stability by Month and Ticker ──────────────────────────────────────────
+w()
+w("6. STABILITY BY MONTH AND TICKER")
+w("-" * 70)
+
+try:
+    comp = pd.read_csv(outputs / "model_comparison.csv")
+    best_model = comp[comp["model"] != "Naive Baseline"].sort_values("DirectionalAccuracy", ascending=False).iloc[0]["model"]
+    monthly = pd.read_csv(outputs / "monthly_model_metrics.csv")
+    ticker = pd.read_csv(outputs / "ticker_model_metrics.csv")
+
+    best_monthly = monthly[monthly["model"] == best_model].sort_values("month")
+    best_ticker = ticker[ticker["model"] == best_model].sort_values("directional_accuracy", ascending=False)
+
+    w(f"  Best directional model : {best_model}")
+    w(
+        f"  Monthly DA range       : {best_monthly['directional_accuracy'].min():.1%} "
+        f"→ {best_monthly['directional_accuracy'].max():.1%}"
+    )
+    w(
+        f"  Monthly average DA     : {best_monthly['directional_accuracy'].mean():.1%}"
+    )
+    w()
+    w("  Strongest tickers on the test split:")
+    for _, row in best_ticker.head(3).iterrows():
+        w(f"    {row['ticker']:<8} DA={row['directional_accuracy']:.1%}  MAE={row['mae']:.5f}")
+    w()
+    w("  Weakest tickers on the test split:")
+    for _, row in best_ticker.tail(3).sort_values("directional_accuracy").iterrows():
+        w(f"    {row['ticker']:<8} DA={row['directional_accuracy']:.1%}  MAE={row['mae']:.5f}")
+except Exception as e:
+    w(f"  Stability analysis not found: {e}")
+
+# ── 7. Strengths & Weaknesses ─────────────────────────────────────────────────
+w()
+w("7. STRENGTHS & WEAKNESSES")
 w("-" * 70)
 
 try:
@@ -170,9 +220,26 @@ try:
 except Exception as e:
     w(f"  Could not generate analysis: {e}")
 
-# ── 6. Limitations ────────────────────────────────────────────────────────────
+# ── 8. Manual Sentiment Validation ────────────────────────────────────────────
 w()
-w("6. LIMITATIONS & DISCLAIMERS")
+w("8. MANUAL SENTIMENT VALIDATION")
+w("-" * 70)
+
+try:
+    validation = pd.read_csv(outputs / "sentiment_validation_sample.csv")
+    agreement = validation["is_match"].mean()
+    w(f"  Reviewed sample size : {len(validation)}")
+    w(f"  VADER agreement      : {agreement:.1%}")
+    w()
+    w("  Manual label support:")
+    for label, count in validation["manual_label"].value_counts().sort_index().items():
+        w(f"    {label:<8} {count:>3}")
+except Exception as e:
+    w(f"  Sentiment validation not found: {e}")
+
+# ── 9. Limitations ────────────────────────────────────────────────────────────
+w()
+w("9. LIMITATIONS & DISCLAIMERS")
 w("-" * 70)
 w("  • Directional accuracy > 50% does NOT guarantee profitability.")
 w("  • Reddit sentiment reflects correlation, not causation.")
@@ -181,9 +248,9 @@ w("  • Transaction costs and slippage are not modelled.")
 w("  • Past predictability does not imply future predictability.")
 w("  • Walk-forward backtesting recommended before live deployment.")
 
-# ── 7. Output Files ───────────────────────────────────────────────────────────
+# ── 10. Output Files ──────────────────────────────────────────────────────────
 w()
-w("7. OUTPUT FILES DELIVERED")
+w("10. OUTPUT FILES DELIVERED")
 w("-" * 70)
 w("  data/raw/reddit_raw.parquet              — Raw Reddit posts & comments")
 w("  data/processed/sentiment_daily.parquet   — Daily sentiment per ticker")
@@ -192,11 +259,23 @@ w("  data/processed/model_dataset.parquet     — Final merged dataset")
 w("  models/xgboost_model.pkl                 — Trained XGBoost model")
 w("  models/lightgbm_model.pkl                — Trained LightGBM model")
 w("  outputs/model_comparison.csv             — Performance metrics")
+w("  outputs/directional_accuracy_stats.csv   — Directional accuracy confidence intervals")
+w("  outputs/ticker_model_metrics.csv         — Ticker-level test metrics")
+w("  outputs/monthly_model_metrics.csv        — Monthly test-period metrics")
 w("  outputs/volume_ranking.png               — Top-10 ticker proof")
 w("  outputs/sentiment_timeseries.png         — 5-year sentiment chart")
 w("  outputs/model_comparison.png             — Model comparison chart")
+w("  outputs/directional_accuracy_ci.png      — Directional accuracy with confidence intervals")
+w("  outputs/ticker_directional_accuracy.png  — Ticker-level directional comparison")
+w("  outputs/monthly_directional_accuracy.png — Month-by-month directional stability")
 w("  outputs/feature_importance.png           — Feature importance chart")
 w("  outputs/predictions_scatter.png          — Actual vs Predicted")
+w("  outputs/residual_distribution.png        — Residual distribution for the best model")
+w("  outputs/direction_confusion.png          — Direction confusion matrix for the best model")
+w("  outputs/sentiment_validation_sample.csv  — Manual sentiment review sample")
+w("  outputs/sentiment_validation_summary.txt — Manual sentiment review summary")
+w("  outputs/sentiment_validation_confusion.png — Manual vs VADER confusion matrix")
+w("  outputs/refresh_run.log                  — Clean thesis artifact refresh log")
 w("  outputs/sentiment_interactive.html       — Interactive sentiment")
 w("  outputs/predictions_interactive.html     — Interactive predictions")
 

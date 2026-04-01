@@ -1,0 +1,181 @@
+======================================================================
+  REDDIT EQUITY FORECAST — MODEL ANALYSIS REPORT
+  Generated: 2026-04-01 23:50
+======================================================================
+
+1. DATASET COVERAGE
+----------------------------------------------------------------------
+  Ticker   From           To                 Days   Years
+  ------------------------------------------------------
+  AAPL     2021-01-04     2025-12-29        1,253    5.0yr
+  AMZN     2021-01-04     2025-12-29        1,253    5.0yr
+  INTC     2021-01-04     2025-12-29        1,253    5.0yr
+  NFLX     2021-01-04     2025-12-29        1,253    5.0yr
+  NIO      2021-01-04     2025-12-29        1,253    5.0yr
+  NVDA     2021-01-04     2025-12-29        1,253    5.0yr
+  PLTR     2021-01-04     2025-12-29        1,253    5.0yr
+  QQQ      2021-01-04     2025-12-29        1,253    5.0yr
+  SPY      2021-01-04     2025-12-29        1,253    5.0yr
+  TSLA     2021-01-04     2025-12-29        1,253    5.0yr
+
+  Total tickers     : 10
+  Configured window : 2021-01-01 → 2025-12-31
+  Market data span  : 2021-01-04 → 2025-12-29
+  Avg trading days  : 1253 per ticker
+
+2. REDDIT DATA COVERAGE
+----------------------------------------------------------------------
+  Total posts/comments : 11,496
+  Configured window    : 2021-01-01 → 2025-12-31
+  Collected range      : 2021-01-01 → 2025-12-31
+  Span                 : 5.0 years
+  Rows in window       : 11,496 / 11,496
+
+  Source breakdown:
+    arctic_shift          9,168 rows
+    praw                  2,328 rows
+
+3. TOP-10 TICKER SELECTION — BY TRADING VOLUME (Acceptance Criterion 3)
+----------------------------------------------------------------------
+  Rank   Ticker         Avg Daily Volume
+  ----------------------------------------
+  1      NVDA                182,160,121
+  2      INTC                 97,790,243
+  3      SPY                  86,179,457
+  4      TSLA                 65,851,082
+  5      QQQ                  61,731,369
+  6      NFLX                 47,759,873
+  7      AMZN                 46,742,113
+  8      NIO                  46,342,467
+  9      AAPL                 46,093,314
+  10     PLTR                 45,941,100
+  11     BAC                  40,605,543
+  12     AMD                  36,416,838
+  13     GOOGL                35,500,035
+  14     RIVN                 34,556,671
+  15     MSFT                 32,309,407
+  16     AMC                  31,289,550
+  17     META                 16,033,706
+  18     BABA                 11,585,653
+  19     LCID                  7,127,460
+  20     GME                   6,982,138
+
+  Selection method: 90-day average daily trading volume (Yahoo Finance)
+
+4. MODEL PERFORMANCE COMPARISON
+----------------------------------------------------------------------
+  Model                       MAE       RMSE    Dir. Acc.
+  --------------------------------------------------------
+  Naive Baseline          0.02833    0.04170       48.6%
+  XGBoost                 0.01984    0.03048       52.9%
+  XGBoost Calibrated      0.01984    0.03048       53.2%
+  LightGBM                0.01982    0.03045       52.2%
+
+  Naive baseline DA       : 48.6%
+  Best model              : XGBoost Calibrated
+  Best directional acc    : 53.2%
+  Gain vs baseline        : +4.5%
+
+5. DIRECTIONAL ACCURACY CONFIDENCE INTERVALS
+----------------------------------------------------------------------
+  Model                        DA   95% CI Lower   95% CI Upper
+  --------------------------------------------------------------
+  Naive Baseline           48.6%         46.7%         50.6%
+  XGBoost                  52.9%         51.0%         54.9%
+  XGBoost Calibrated       53.2%         51.2%         55.1%
+  LightGBM                 52.2%         50.2%         54.1%
+
+6. STABILITY BY MONTH AND TICKER
+----------------------------------------------------------------------
+  Best directional model : XGBoost Calibrated
+  Monthly DA range       : 23.3% → 60.0%
+  Monthly average DA     : 51.1%
+
+  Strongest tickers on the test split:
+    PLTR     DA=57.4%  MAE=0.02978
+    SPY      DA=57.4%  MAE=0.00740
+    QQQ      DA=56.6%  MAE=0.00943
+
+  Weakest tickers on the test split:
+    NIO      DA=47.8%  MAE=0.03066
+    TSLA     DA=49.4%  MAE=0.02929
+    INTC     DA=51.4%  MAE=0.02733
+
+7. STRENGTHS & WEAKNESSES
+----------------------------------------------------------------------
+
+  XGBoost:
+    STRENGTH: Directional accuracy improves on the naive baseline by 4.3%.
+    STRENGTH: Low MAE (0.01984) relative to daily move size.
+    WEAKNESS: RMSE (0.03048) is much larger than MAE (0.01984) — errors widen on volatile days.
+    CONTEXT: The model still gets direction wrong 47.1% of the time.
+
+  XGBoost Calibrated:
+    STRENGTH: Directional accuracy improves on the naive baseline by 4.5%.
+    STRENGTH: Low MAE (0.01984) relative to daily move size.
+    WEAKNESS: RMSE (0.03048) is much larger than MAE (0.01984) — errors widen on volatile days.
+    CONTEXT: The model still gets direction wrong 46.8% of the time.
+
+  LightGBM:
+    STRENGTH: Directional accuracy improves on the naive baseline by 3.5%.
+    STRENGTH: Low MAE (0.01982) relative to daily move size.
+    WEAKNESS: RMSE (0.03045) is much larger than MAE (0.01982) — errors widen on volatile days.
+    CONTEXT: The model still gets direction wrong 47.8% of the time.
+
+  OVERALL OBSERVATIONS:
+    • Best observed directional accuracy is 53.2% from XGBoost Calibrated.
+    • That represents a +4.5% lift over the naive benchmark on this test split.
+    • Treat feature importance as in-sample association, not proof of causal predictive signal.
+    • Predictions remain close to zero on many days, which is typical for next-day return regression.
+
+8. MANUAL SENTIMENT VALIDATION
+----------------------------------------------------------------------
+  Reviewed sample size : 36
+  VADER agreement      : 55.6%
+
+  Manual label support:
+    negative  16
+    neutral   10
+    positive  10
+
+9. LIMITATIONS & DISCLAIMERS
+----------------------------------------------------------------------
+  • Directional accuracy > 50% does NOT guarantee profitability.
+  • Reddit sentiment reflects correlation, not causation.
+  • Meme stocks and coordinated posts may introduce noise.
+  • Transaction costs and slippage are not modelled.
+  • Past predictability does not imply future predictability.
+  • Walk-forward backtesting recommended before live deployment.
+
+10. OUTPUT FILES DELIVERED
+----------------------------------------------------------------------
+  data/raw/reddit_raw.parquet              — Raw Reddit posts & comments
+  data/processed/sentiment_daily.parquet   — Daily sentiment per ticker
+  data/processed/market_features.parquet   — OHLCV + technical indicators
+  data/processed/model_dataset.parquet     — Final merged dataset
+  models/xgboost_model.pkl                 — Trained XGBoost model
+  models/lightgbm_model.pkl                — Trained LightGBM model
+  outputs/model_comparison.csv             — Performance metrics
+  outputs/directional_accuracy_stats.csv   — Directional accuracy confidence intervals
+  outputs/ticker_model_metrics.csv         — Ticker-level test metrics
+  outputs/monthly_model_metrics.csv        — Monthly test-period metrics
+  outputs/volume_ranking.png               — Top-10 ticker proof
+  outputs/sentiment_timeseries.png         — 5-year sentiment chart
+  outputs/model_comparison.png             — Model comparison chart
+  outputs/directional_accuracy_ci.png      — Directional accuracy with confidence intervals
+  outputs/ticker_directional_accuracy.png  — Ticker-level directional comparison
+  outputs/monthly_directional_accuracy.png — Month-by-month directional stability
+  outputs/feature_importance.png           — Feature importance chart
+  outputs/predictions_scatter.png          — Actual vs Predicted
+  outputs/residual_distribution.png        — Residual distribution for the best model
+  outputs/direction_confusion.png          — Direction confusion matrix for the best model
+  outputs/sentiment_validation_sample.csv  — Manual sentiment review sample
+  outputs/sentiment_validation_summary.txt — Manual sentiment review summary
+  outputs/sentiment_validation_confusion.png — Manual vs VADER confusion matrix
+  outputs/refresh_run.log                  — Clean thesis artifact refresh log
+  outputs/sentiment_interactive.html       — Interactive sentiment
+  outputs/predictions_interactive.html     — Interactive predictions
+
+======================================================================
+  END OF REPORT
+======================================================================

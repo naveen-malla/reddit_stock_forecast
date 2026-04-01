@@ -78,6 +78,25 @@ python run_pipeline.py --skip-sentiment  # Market features only, skip sentiment
 python run_pipeline.py --use-finbert     # Enable optional FinBERT scoring
 ```
 
+## Integrity Checks
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+These tests lock the most important thesis assumptions:
+- Reddit rows are clipped to the configured study window
+- sentiment is lagged by one day before modelling
+- train / validation / test splits remain chronological with no overlap
+
+## Refresh Thesis Outputs
+
+```bash
+python refresh_thesis_outputs.py
+```
+
+This regenerates the scored sentiment files, evaluation tables, thesis plots, manual sentiment appendix, and analysis report from the cached datasets and saved models.
+
 ## Project Structure
 
 ```
@@ -85,6 +104,7 @@ reddit_equity_forecast/
 ├── config.py                     # Central config — paths, constants, env vars
 ├── run_pipeline.py               # End-to-end runner
 ├── full_run.py                   # Alternative full-run entry point
+├── refresh_thesis_outputs.py     # Fast thesis artifact refresh from cached data
 ├── generate_report.py            # Generate summary report from outputs
 ├── convert_all_parquet.py        # Convert cached Parquet files utility
 ├── export_to_excel.py            # Export results to Excel
@@ -99,11 +119,18 @@ reddit_equity_forecast/
 │   ├── sentiment_engine.py       # VADER + optional FinBERT
 │   ├── market_data.py            # yfinance OHLCV + RSI/MACD/BB features
 │   ├── dataset_builder.py        # Merge, 1-day lag, 70/10/20 split
-│   ├── models.py                 # Naive Baseline + XGBoost + LightGBM
-│   └── visualiser.py             # PNG + Plotly interactive HTML
+│   ├── models.py                 # Naive Baseline + XGBoost + calibrated XGBoost + LightGBM
+│   ├── visualiser.py             # Core PNG + Plotly interactive HTML
+│   ├── results_analyzer.py       # Thesis-oriented evaluation tables and plots
+│   └── sentiment_validation.py   # Manual sentiment appendix generator
+├── tests/
+│   └── test_pipeline_integrity.py
 ├── notebooks/
 │   └── reddit_equity_analysis.ipynb
+├── docs/
+│   └── results/                  # Committed charts and report snapshots for GitHub
 ├── data/                         # Auto-created on first run
+│   └── validation/               # Manual sentiment review labels
 ├── models/                       # Auto-created on first run
 └── outputs/                      # Auto-created on first run
 ```
@@ -116,6 +143,39 @@ reddit_equity_forecast/
 | **XGBoost** | Gradient-boosted trees, early stopping on val set |
 | **XGBoost Calibrated** | XGBoost regression with a validation-tuned directional threshold |
 | **LightGBM** | Leaf-wise boosting, early stopping on val set |
+
+## Results Snapshot
+
+Current held-out test results:
+- `Naive Baseline`: MAE `0.02833`, RMSE `0.04170`, DA `48.6%`
+- `XGBoost`: MAE `0.01984`, RMSE `0.03048`, DA `52.9%`
+- `XGBoost Calibrated`: MAE `0.01984`, RMSE `0.03048`, DA `53.2%`
+- `LightGBM`: MAE `0.01982`, RMSE `0.03045`, DA `52.2%`
+
+The strongest thesis-ready evidence is in:
+- `docs/results/model_analysis.txt`
+- `docs/results/directional_accuracy_stats.csv`
+- `docs/results/ticker_model_metrics.csv`
+- `docs/results/monthly_model_metrics.csv`
+- `docs/results/sentiment_validation_summary.txt`
+
+### Model Comparison
+
+![Model Comparison](docs/results/model_comparison.png)
+
+### Directional Accuracy Confidence Intervals
+
+![Directional Accuracy Confidence Intervals](docs/results/directional_accuracy_ci.png)
+
+### Stability by Ticker and Month
+
+![Ticker Directional Accuracy](docs/results/ticker_directional_accuracy.png)
+
+![Monthly Directional Accuracy](docs/results/monthly_directional_accuracy.png)
+
+### Manual Sentiment Validation
+
+![Manual vs VADER Sentiment Labels](docs/results/sentiment_validation_confusion.png)
 
 ## Acceptance Criteria
 
@@ -130,12 +190,22 @@ reddit_equity_forecast/
 
 | File | Description |
 |---|---|
-| `outputs/model_comparison.csv` | MAE / RMSE / DA for all 3 models |
+| `outputs/model_comparison.csv` | MAE / RMSE / DA for all 4 models |
+| `outputs/directional_accuracy_stats.csv` | Wilson confidence intervals for directional accuracy |
+| `outputs/ticker_model_metrics.csv` | Ticker-level MAE / RMSE / DA on the test split |
+| `outputs/monthly_model_metrics.csv` | Month-by-month test-period stability metrics |
 | `outputs/volume_ranking.png` | Top-10 ticker bar chart |
 | `outputs/sentiment_timeseries.png` | VADER sentiment per ticker over time |
 | `outputs/model_comparison.png` | Side-by-side model comparison |
+| `outputs/directional_accuracy_ci.png` | Directional accuracy with 95% confidence intervals |
+| `outputs/ticker_directional_accuracy.png` | Best model vs baseline by ticker |
+| `outputs/monthly_directional_accuracy.png` | Monthly directional accuracy stability |
 | `outputs/feature_importance.png` | Top-20 features per model |
 | `outputs/predictions_scatter.png` | Actual vs predicted scatter |
+| `outputs/residual_distribution.png` | Residual histogram for the best model |
+| `outputs/direction_confusion.png` | Up/down confusion matrix for the best model |
+| `outputs/sentiment_validation_sample.csv` | Reviewed manual sentiment sample |
+| `outputs/sentiment_validation_confusion.png` | Manual vs VADER sentiment confusion matrix |
 | `outputs/sentiment_interactive.html` | Interactive Plotly sentiment chart |
 | `outputs/predictions_interactive.html` | Interactive Plotly predictions |
 | `outputs/pipeline.log` | Full debug log |
