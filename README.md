@@ -1,0 +1,144 @@
+# Reddit Equity Forecast  v2.0
+
+Predict next-day stock price percentage moves using Reddit sentiment + market features.
+
+## Quick Start — One Command
+
+```bash
+# 1. Unzip and enter project
+cd reddit_equity_forecast
+
+# 2. Install dependencies
+pip install -r requirements.txt
+# OR: conda env create -f environment.yml && conda activate reddit_equity_forecast
+
+# 3. Add Reddit API credentials
+cp .env.example .env
+# Open .env and fill in REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET
+
+# 4. Run — that's it
+python run_pipeline.py
+```
+
+No manual data downloads. No CSV files to place anywhere. Fully automatic.
+
+---
+
+## Get Reddit API Credentials (one-time setup)
+
+1. Go to https://www.reddit.com/prefs/apps
+2. Click **Create App** → choose **script**
+3. Copy `client_id` (below the app name) and `secret`
+4. Paste into `.env`
+
+---
+
+## Data Collection Strategy
+
+The pipeline collects **real Reddit data only** using 3 sources in order:
+
+```
+[1] Arctic Shift API  — free, no auth, real data 2020–present
+      ↓ if unreachable
+[2] PullPush.io API   — backup mirror, real data 2020–present
+      ↓ if unreachable
+[3] PRAW              — Reddit official API, real data last 1 year
+```
+
+After collection, a **per-ticker per-year coverage table** is printed showing
+exactly which years have good data, sparse data, or no data — honestly.
+
+No fake data is ever generated. All rows are real Reddit posts and comments.
+
+---
+
+## Pipeline Stages
+
+```
+python run_pipeline.py
+  Stage 1 → Validate configuration & credentials
+  Stage 2 → Select top-10 tickers by 90-day trading volume    [Criterion 3]
+  Stage 3 → Collect real Reddit data — 3-source fallback      [Criterion 2]
+  Stage 4 → Score sentiment: VADER + FinBERT (GPU if available)
+  Stage 5 → Fetch OHLCV from Yahoo Finance + engineer features
+  Stage 6 → Merge, lag 1 day, split 70% train / 10% val / 20% test
+  Stage 7 → Train: Naive Baseline + XGBoost + LightGBM
+  Stage 8 → Generate PNG + interactive HTML plots
+```
+
+## Run Flags
+
+```bash
+python run_pipeline.py --force           # Ignore all caches, recompute everything
+python run_pipeline.py --skip-reddit     # Use cached Reddit data (faster iteration)
+python run_pipeline.py --skip-sentiment  # Market features only, skip sentiment
+```
+
+## Project Structure
+
+```
+reddit_equity_forecast/
+├── config.py                     # Central config — paths, constants, env vars
+├── run_pipeline.py               # Single-command end-to-end runner
+├── full_run.py                   # Alternative full-run entry point
+├── generate_report.py            # Generate summary report from outputs
+├── convert_all_parquet.py        # Convert cached Parquet files utility
+├── export_to_excel.py            # Export results to Excel
+├── check_coverage.py             # Check Reddit data coverage per ticker/year
+├── check_raw_files.py            # Inspect raw collected data files
+├── requirements.txt
+├── environment.yml
+├── .env.example                  ← Copy to .env, add your keys
+├── src/
+│   ├── ticker_selector.py        # 90-day volume ranking → top-N
+│   ├── reddit_collector.py       # 3-source real data collection
+│   ├── sentiment_engine.py       # VADER + FinBERT (GPU-aware)
+│   ├── market_data.py            # yfinance OHLCV + RSI/MACD/BB features
+│   ├── dataset_builder.py        # Merge, 1-day lag, 70/10/20 split
+│   ├── models.py                 # Naive Baseline + XGBoost + LightGBM
+│   └── visualiser.py             # PNG + Plotly interactive HTML
+├── notebooks/
+│   └── reddit_equity_analysis.ipynb
+├── data/                         # Auto-created on first run
+├── models/                       # Auto-created on first run
+└── outputs/                      # Auto-created on first run
+```
+
+## Models
+
+| Model | Description |
+|---|---|
+| **Naive Baseline** | Yesterday's return — random-walk null hypothesis |
+| **XGBoost** | Gradient-boosted trees, early stopping on val set |
+| **LightGBM** | Leaf-wise boosting, early stopping on val set |
+
+## Acceptance Criteria
+
+| # | Criterion | How it's met |
+|---|---|---|
+| 1 | Runs without manual tweaks | Single `python run_pipeline.py`, zero manual steps |
+| 2 | Real Reddit data only | 3-source fallback (Arctic Shift → PullPush → PRAW); no synthetic data |
+| 3 | Coverage proof printed | Per-ticker per-year table shows exactly what was collected |
+| 4 | Top-10 by trading volume | Full ranked table printed with ✓ marks |
+
+## Outputs
+
+| File | Description |
+|---|---|
+| `outputs/model_comparison.csv` | MAE / RMSE / DA for all 3 models |
+| `outputs/volume_ranking.png` | Top-10 ticker bar chart |
+| `outputs/sentiment_timeseries.png` | VADER sentiment per ticker over time |
+| `outputs/model_comparison.png` | Side-by-side model comparison |
+| `outputs/feature_importance.png` | Top-20 features per model |
+| `outputs/predictions_scatter.png` | Actual vs predicted scatter |
+| `outputs/sentiment_interactive.html` | Interactive Plotly sentiment chart |
+| `outputs/predictions_interactive.html` | Interactive Plotly predictions |
+| `outputs/pipeline.log` | Full debug log |
+
+## Known Limitations
+
+- Reddit API officially covers last 1 year only. Older data (2020–2022) depends
+  on Arctic Shift / PullPush availability — gaps are reported honestly, not filled
+- Reddit sentiment = correlation, not causation
+- Transaction costs and slippage not modelled
+- Walk-forward backtesting recommended before live deployment

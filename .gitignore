@@ -1,0 +1,16 @@
+.env
+venv/
+.review-venv/
+data/raw/reddit/
+data/raw/*.parquet
+models/*
+!models/.gitkeep
+outputs/*
+!outputs/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+__pycache__/
+*.pyc
+*.egg-info/
+.ipynb_checkpoints/
+.DS_Store
