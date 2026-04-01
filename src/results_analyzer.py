@@ -28,6 +28,7 @@ from loguru import logger
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from config import cfg
+from src.models import BASELINE_MODEL_NAME
 
 
 sns.set_theme(style="darkgrid", context="notebook", font_scale=1.0)
@@ -105,12 +106,12 @@ class ResultsAnalyzer:
     @staticmethod
     def _best_model_name(comparison_df: pd.DataFrame, pred_df: pd.DataFrame) -> str:
         if not comparison_df.empty:
-            ml_df = comparison_df[comparison_df["model"] != "Naive Baseline"]
+            ml_df = comparison_df[comparison_df["model"] != BASELINE_MODEL_NAME]
             if not ml_df.empty:
                 best_idx = ml_df["DirectionalAccuracy"].idxmax()
                 return str(ml_df.loc[best_idx, "model"])
-        model_cols = [c for c in ResultsAnalyzer._model_cols(pred_df) if c != "Naive Baseline"]
-        return model_cols[0] if model_cols else "Naive Baseline"
+        model_cols = [c for c in ResultsAnalyzer._model_cols(pred_df) if c != BASELINE_MODEL_NAME]
+        return model_cols[0] if model_cols else BASELINE_MODEL_NAME
 
     def save_directional_accuracy_stats(self, pred_df: pd.DataFrame) -> pd.DataFrame:
         rows = []
@@ -175,7 +176,7 @@ class ResultsAnalyzer:
                 df["ci_upper"] - df["directional_accuracy"],
             ]
         )
-        colors = [PALETTE[2] if model == "Naive Baseline" else PALETTE[0] for model in order]
+        colors = [PALETTE[2] if model == BASELINE_MODEL_NAME else PALETTE[0] for model in order]
         fig, ax = plt.subplots(figsize=(9, 5))
         bars = ax.bar(order, df["directional_accuracy"], color=colors, yerr=yerr, capsize=5)
         ax.axhline(0.50, color="red", linestyle="--", linewidth=1, label="Random (50%)")
@@ -192,7 +193,7 @@ class ResultsAnalyzer:
         if ticker_df.empty:
             return
         best_model = self._best_model_name(comparison_df, pd.DataFrame(columns=["actual"]))
-        focus = ticker_df[ticker_df["model"].isin(["Naive Baseline", best_model])].copy()
+        focus = ticker_df[ticker_df["model"].isin([BASELINE_MODEL_NAME, best_model])].copy()
         if focus.empty:
             return
         pivot = focus.pivot(index="ticker", columns="model", values="directional_accuracy")
@@ -201,13 +202,13 @@ class ResultsAnalyzer:
         fig, ax = plt.subplots(figsize=(11, 5))
         x = np.arange(len(pivot.index))
         width = 0.36
-        ax.bar(x - width / 2, pivot["Naive Baseline"], width=width, color=PALETTE[2], label="Naive Baseline")
+        ax.bar(x - width / 2, pivot[BASELINE_MODEL_NAME], width=width, color=PALETTE[2], label=BASELINE_MODEL_NAME)
         ax.bar(x + width / 2, pivot[best_model], width=width, color=PALETTE[0], label=best_model)
         ax.axhline(0.50, color="red", linestyle="--", linewidth=1)
         ax.set_xticks(x)
         ax.set_xticklabels(pivot.index, rotation=30)
         ax.set_ylabel("Directional Accuracy")
-        ax.set_title(f"Ticker-Level Directional Accuracy: {best_model} vs Naive Baseline")
+        ax.set_title(f"Ticker-Level Directional Accuracy: {best_model} vs {BASELINE_MODEL_NAME}")
         ax.legend(fontsize=9)
         plt.tight_layout()
         self._save(fig, "ticker_directional_accuracy")

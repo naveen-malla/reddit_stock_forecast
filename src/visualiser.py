@@ -4,10 +4,10 @@ src/visualiser.py
 Generates all output plots:
   1. Volume ranking bar chart
   2. Sentiment time series per ticker
-  3. Model comparison (MAE / RMSE / DA) including baseline
+  3. Model comparison (MAE / RMSE / DA) including the benchmark model
   4. Feature importance (XGBoost + LightGBM)
   5. Predicted vs actual scatter
-  6. Interactive Plotly HTML charts (bonus outputs)
+  6. Interactive Plotly HTML charts
 
 FIXES vs v1:
   - Plotly actually used (was imported but never called in v1)
@@ -31,6 +31,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from config import cfg
 from loguru import logger
+from src.models import BASELINE_MODEL_NAME
 
 sns.set_theme(style="darkgrid", context="notebook", font_scale=1.1)
 PALETTE = sns.color_palette("tab10")
@@ -116,7 +117,7 @@ class Visualiser:
             ("DirectionalAccuracy", "Directional Accuracy"),
         ]
 
-        colors = [PALETTE[2] if m == "Naive Baseline" else PALETTE[0]
+        colors = [PALETTE[2] if m == BASELINE_MODEL_NAME else PALETTE[0]
                   for m in df["model"]]
 
         for ax, (col, label) in zip(axes, metrics):
@@ -134,7 +135,7 @@ class Visualiser:
             ax.set_ylim(0, max(vals) * 1.2)
             ax.tick_params(axis="x", rotation=20)
 
-        fig.suptitle("Model Comparison — Test Set (gray = naive baseline)", fontsize=12, y=1.02)
+        fig.suptitle("Model Comparison — Test Set (gray = persistence benchmark)", fontsize=12, y=1.02)
         plt.tight_layout()
         self._save(fig, "model_comparison")
 
@@ -170,7 +171,7 @@ class Visualiser:
             return
         df = pd.read_parquet(pred_path)
 
-        ml_models = [c for c in df.columns if c not in (_PREDICTION_META_COLS | {"Naive Baseline"})]
+        ml_models = [c for c in df.columns if c not in (_PREDICTION_META_COLS | {BASELINE_MODEL_NAME})]
         fig, axes = plt.subplots(1, len(ml_models), figsize=(7 * len(ml_models), 5))
         if len(ml_models) == 1:
             axes = [axes]

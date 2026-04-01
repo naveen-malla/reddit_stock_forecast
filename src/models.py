@@ -1,19 +1,19 @@
 """
 src/models.py
 ─────────────
-Trains and evaluates three models:
+Trains and evaluates four models:
 
-  1. Naive Baseline  — yesterday's return as prediction (random-walk benchmark)
-  2. XGBoost         — gradient-boosted trees
-  3. XGBoost Calibrated — same regressor with validation-tuned directional threshold
-  4. LightGBM        — leaf-wise gradient boosting
+  1. Persistence Benchmark   — uses the most recent one-day return as the next-day forecast
+  2. XGBoost                 — gradient-boosted trees
+  3. XGBoost Calibrated      — same regressor with validation-tuned directional threshold
+  4. LightGBM                — leaf-wise gradient boosting
 
 FIXES vs v1:
-  - Added naive baseline model
+  - Added a persistence benchmark model
   - LightGBM early stopping uses VALIDATION set (not test set — was data leakage)
   - XGBoost eval_set also uses validation set
   - Directional accuracy added as classification metric
-  - Qualitative analysis improved
+  - Human-readable result interpretation improved for reporting
 
 Evaluation metrics:
   MAE  — Mean Absolute Error
@@ -38,6 +38,8 @@ import lightgbm as lgb
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from config import cfg
+
+BASELINE_MODEL_NAME = "Persistence Benchmark"
 
 
 def directional_accuracy(y_true: np.ndarray, y_pred: np.ndarray) -> float:
@@ -113,11 +115,12 @@ def build_lightgbm() -> lgb.LGBMRegressor:
     )
 
 
-class NaiveBaseline:
+class PersistenceBenchmark:
     """
-    Yesterday's return = tomorrow's predicted return.
-    This is the simplest possible model — ML must beat this to be useful.
-    In finance this is the random-walk null hypothesis.
+    Persistence benchmark:
+    predicts the next-day return using the most recent observed one-day return.
+    This provides a simple reference point for evaluating whether the machine-learning
+    models add explanatory value beyond short-horizon return persistence.
     """
 
     def fit(self, X_train, y_train, **kwargs):
@@ -175,18 +178,18 @@ class ModelTrainer:
         """Train all models, evaluate, return comparison DataFrame."""
         self.results = []
 
-        # ── 1. Naive Baseline ─────────────────────────────────────────────────
-        logger.info("Evaluating naive baseline (yesterday's return) …")
-        baseline = NaiveBaseline()
+        # ── 1. Persistence Benchmark ─────────────────────────────────────────
+        logger.info("Evaluating persistence benchmark (most recent one-day return predictor) …")
+        baseline = PersistenceBenchmark()
         baseline.set_ret_col_idx(feature_cols)
         baseline.fit(X_train, y_train)
         y_pred_baseline = baseline.predict(X_test)
-        baseline_metrics = evaluate("Naive Baseline", y_test, y_pred_baseline)
+        baseline_metrics = evaluate(BASELINE_MODEL_NAME, y_test, y_pred_baseline)
         baseline_metrics["y_pred"] = y_pred_baseline
         self.results.append(baseline_metrics)
-        self.trained_models["Naive Baseline"] = baseline
+        self.trained_models[BASELINE_MODEL_NAME] = baseline
         logger.info(
-            f"  Naive Baseline — MAE={baseline_metrics['MAE']:.5f}  "
+            f"  {BASELINE_MODEL_NAME} — MAE={baseline_metrics['MAE']:.5f}  "
             f"DA={baseline_metrics['DirectionalAccuracy']:.3f}"
         )
 
@@ -258,35 +261,35 @@ class ModelTrainer:
         print("\n" + "═" * 70)
         print("  MODEL PERFORMANCE COMPARISON")
         print("═" * 70)
-        print(f"  {'Model':<18} {'MAE':>10} {'RMSE':>10} {'Dir. Acc.':>12}  {'vs Baseline':>12}")
+        print(f"  {'Model':<22} {'MAE':>10} {'RMSE':>10} {'Dir. Acc.':>12}  {'DA Lift':>12}")
         print("─" * 70)
 
-        baseline_da = df[df["model"] == "Naive Baseline"]["DirectionalAccuracy"].values
+        baseline_da = df[df["model"] == BASELINE_MODEL_NAME]["DirectionalAccuracy"].values
         baseline_da = baseline_da[0] if len(baseline_da) else 0.5
 
         for _, row in df.iterrows():
             vs = ""
-            if row["model"] != "Naive Baseline":
+            if row["model"] != BASELINE_MODEL_NAME:
                 diff = row["DirectionalAccuracy"] - baseline_da
                 vs = f"+{diff:.1%}" if diff >= 0 else f"{diff:.1%}"
             print(
-                f"  {row['model']:<18} {row['MAE']:>10.5f} {row['RMSE']:>10.5f} "
+                f"  {row['model']:<22} {row['MAE']:>10.5f} {row['RMSE']:>10.5f} "
                 f"{row['DirectionalAccuracy']:>11.1%}  {vs:>12}"
             )
         print("─" * 70)
 
-        best_da_row = df[df["model"] != "Naive Baseline"]["DirectionalAccuracy"].idxmax()
-        best_mae_row = df[df["model"] != "Naive Baseline"]["MAE"].idxmin()
+        best_da_row = df[df["model"] != BASELINE_MODEL_NAME]["DirectionalAccuracy"].idxmax()
+        best_mae_row = df[df["model"] != BASELINE_MODEL_NAME]["MAE"].idxmin()
         print(f"  Best MAE model:        {df.loc[best_mae_row, 'model']}")
         print(f"  Best Directional Acc:  {df.loc[best_da_row, 'model']}")
         print("═" * 70)
 
         print("\nLIMITATIONS & CONTEXT")
         print("─" * 70)
-        print("  • Directional accuracy > 50% does NOT guarantee profitability.")
-        print("  • Reddit sentiment may reflect noise, memes, or coordinated posts.")
+        print("  • Directional accuracy above 50% does not, by itself, imply economic profitability.")
+        print("  • Reddit sentiment may reflect noise, viral narratives, or coordinated posting activity.")
         print("  • Past predictability does not imply future predictability.")
-        print("  • Transaction costs and slippage not modelled.")
+        print("  • Transaction costs and slippage are not modelled.")
         print("  • All predictions are percentage next-day close moves.")
         print()
 
@@ -326,25 +329,25 @@ class ModelTrainer:
 
     @staticmethod
     def _print_qualitative(df: pd.DataFrame) -> None:
-        print("STRENGTHS & WEAKNESSES")
+        print("INTERPRETIVE NOTES")
         print("─" * 70)
         for _, row in df.iterrows():
-            if row["model"] == "Naive Baseline":
+            if row["model"] == BASELINE_MODEL_NAME:
                 continue
             da = row["DirectionalAccuracy"]
             mae = row["MAE"]
             rmse = row["RMSE"]
             print(f"\n  {row['model']}:")
             if da > 0.55:
-                print(f"    + Strong directional accuracy ({da:.1%}) — viable for long/short signals.")
+                print(f"    Directional accuracy is comparatively strong at {da:.1%}, although trading viability would still require transaction-cost analysis.")
             elif da > 0.50:
-                print(f"    ~ Marginal directional accuracy ({da:.1%}) — consider ensemble.")
+                print(f"    Directional accuracy is modestly above chance at {da:.1%}, indicating limited but positive directional discrimination.")
             else:
-                print(f"    - Below-chance direction ({da:.1%}) — needs more feature engineering.")
+                print(f"    Directional accuracy is below 50% at {da:.1%}, indicating weak directional discrimination on the current test split.")
             if rmse / mae > 1.5:
-                print("    - RMSE >> MAE — occasional large errors. Check for outlier dates.")
+                print("    RMSE is materially above MAE, which suggests sensitivity to a smaller number of larger forecast errors.")
             else:
-                print("    + Error distribution is stable (RMSE ≈ MAE).")
+                print("    RMSE remains close to MAE, which suggests a relatively stable error distribution.")
         print()
 
 

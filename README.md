@@ -49,9 +49,9 @@ The pipeline collects **real Reddit data only** using 3 sources in order:
 ```
 
 After collection, a **per-ticker per-year coverage table** is printed showing
-exactly which years have good data, sparse data, or no data — honestly.
+which years have adequate coverage, limited coverage, or no collected data.
 
-No fake data is ever generated. All rows are real Reddit posts and comments.
+No synthetic Reddit rows are generated. All rows originate from collected Reddit posts and comments.
 
 ---
 
@@ -65,7 +65,7 @@ python run_pipeline.py
   Stage 4 → Score sentiment: VADER by default, FinBERT optional
   Stage 5 → Fetch OHLCV from Yahoo Finance + engineer features
   Stage 6 → Merge, lag 1 day, split 70% train / 10% val / 20% test
-  Stage 7 → Train: Naive Baseline + XGBoost + XGBoost Calibrated + LightGBM
+  Stage 7 → Train: Persistence Benchmark + XGBoost + XGBoost Calibrated + LightGBM
   Stage 8 → Generate PNG + interactive HTML plots
 ```
 
@@ -119,7 +119,7 @@ reddit_equity_forecast/
 │   ├── sentiment_engine.py       # VADER + optional FinBERT
 │   ├── market_data.py            # yfinance OHLCV + RSI/MACD/BB features
 │   ├── dataset_builder.py        # Merge, 1-day lag, 70/10/20 split
-│   ├── models.py                 # Naive Baseline + XGBoost + calibrated XGBoost + LightGBM
+│   ├── models.py                 # Persistence benchmark + XGBoost + calibrated XGBoost + LightGBM
 │   ├── visualiser.py             # Core PNG + Plotly interactive HTML
 │   ├── results_analyzer.py       # Thesis-oriented evaluation tables and plots
 │   └── sentiment_validation.py   # Manual sentiment appendix generator
@@ -139,7 +139,7 @@ reddit_equity_forecast/
 
 | Model | Description |
 |---|---|
-| **Naive Baseline** | Yesterday's return — random-walk null hypothesis |
+| **Persistence Benchmark** | Uses the most recent observed one-day return as the next-day forecast |
 | **XGBoost** | Gradient-boosted trees, early stopping on val set |
 | **XGBoost Calibrated** | XGBoost regression with a validation-tuned directional threshold |
 | **LightGBM** | Leaf-wise boosting, early stopping on val set |
@@ -147,7 +147,7 @@ reddit_equity_forecast/
 ## Results Snapshot
 
 Current held-out test results:
-- `Naive Baseline`: MAE `0.02833`, RMSE `0.04170`, DA `48.6%`
+- `Persistence Benchmark`: MAE `0.02833`, RMSE `0.04170`, DA `48.6%`
 - `XGBoost`: MAE `0.01984`, RMSE `0.03048`, DA `52.9%`
 - `XGBoost Calibrated`: MAE `0.01984`, RMSE `0.03048`, DA `53.2%`
 - `LightGBM`: MAE `0.01982`, RMSE `0.03045`, DA `52.2%`
@@ -158,6 +158,8 @@ The strongest thesis-ready evidence is in:
 - `docs/results/ticker_model_metrics.csv`
 - `docs/results/monthly_model_metrics.csv`
 - `docs/results/sentiment_validation_summary.txt`
+
+The committed artifact folder is explained in `docs/results/README.md`.
 
 ### Model Comparison
 
@@ -181,9 +183,9 @@ The strongest thesis-ready evidence is in:
 
 | # | Criterion | How it's met |
 |---|---|---|
-| 1 | Runs without manual tweaks | `python run_pipeline.py` works with cached/archive data; PRAW and FinBERT are optional |
+| 1 | Runs without manual tweaks | `python run_pipeline.py` runs from the packaged project state; PRAW and FinBERT remain optional |
 | 2 | Real Reddit data only | 3-source fallback (Arctic Shift → PullPush → optional PRAW); no synthetic data |
-| 3 | Coverage proof printed | Per-ticker per-year table shows exactly what was collected |
+| 3 | Coverage table printed | Per-ticker per-year coverage summary is printed during collection |
 | 4 | Top-10 by trading volume | Full ranked table printed with ✓ marks |
 
 ## Outputs

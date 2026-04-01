@@ -1,6 +1,6 @@
 ======================================================================
   REDDIT EQUITY FORECAST — MODEL ANALYSIS REPORT
-  Generated: 2026-04-01 23:50
+  Generated: 2026-04-01 23:58
 ======================================================================
 
 1. DATASET COVERAGE
@@ -66,26 +66,35 @@
 ----------------------------------------------------------------------
   Model                       MAE       RMSE    Dir. Acc.
   --------------------------------------------------------
-  Naive Baseline          0.02833    0.04170       48.6%
+  Persistence Benchmark    0.02833    0.04170       48.6%
   XGBoost                 0.01984    0.03048       52.9%
   XGBoost Calibrated      0.01984    0.03048       53.2%
   LightGBM                0.01982    0.03045       52.2%
 
-  Naive baseline DA       : 48.6%
+  Persistence benchmark DA : 48.6%
   Best model              : XGBoost Calibrated
   Best directional acc    : 53.2%
-  Gain vs baseline        : +4.5%
+  Gain vs benchmark       : +4.5%
 
-5. DIRECTIONAL ACCURACY CONFIDENCE INTERVALS
+5. EVALUATION PROTOCOL
+----------------------------------------------------------------------
+  • Split design           : first 70% of dates for training, next 10% for validation, final 20% for testing
+  • Target variable        : next-day close return, expressed as a percentage change
+  • MAE                    : average absolute prediction error
+  • RMSE                   : square-root of mean squared prediction error
+  • Directional Accuracy   : share of test observations where the predicted sign matches the realised sign
+  • Benchmark model        : Persistence Benchmark
+
+6. DIRECTIONAL ACCURACY CONFIDENCE INTERVALS
 ----------------------------------------------------------------------
   Model                        DA   95% CI Lower   95% CI Upper
   --------------------------------------------------------------
-  Naive Baseline           48.6%         46.7%         50.6%
+  Persistence Benchmark     48.6%         46.7%         50.6%
   XGBoost                  52.9%         51.0%         54.9%
   XGBoost Calibrated       53.2%         51.2%         55.1%
   LightGBM                 52.2%         50.2%         54.1%
 
-6. STABILITY BY MONTH AND TICKER
+7. STABILITY BY MONTH AND TICKER
 ----------------------------------------------------------------------
   Best directional model : XGBoost Calibrated
   Monthly DA range       : 23.3% → 60.0%
@@ -101,34 +110,34 @@
     TSLA     DA=49.4%  MAE=0.02929
     INTC     DA=51.4%  MAE=0.02733
 
-7. STRENGTHS & WEAKNESSES
+8. INTERPRETATION OF MODEL RESULTS
 ----------------------------------------------------------------------
 
   XGBoost:
-    STRENGTH: Directional accuracy improves on the naive baseline by 4.3%.
-    STRENGTH: Low MAE (0.01984) relative to daily move size.
-    WEAKNESS: RMSE (0.03048) is much larger than MAE (0.01984) — errors widen on volatile days.
-    CONTEXT: The model still gets direction wrong 47.1% of the time.
+    Relative to the persistence benchmark, directional accuracy improves by 4.3%.
+    The mean absolute error is comparatively low at 0.01984 relative to daily return scale.
+    RMSE (0.03048) is materially above MAE (0.01984), which suggests sensitivity to larger forecast errors.
+    The model still assigns the wrong return direction on 47.1% of test observations.
 
   XGBoost Calibrated:
-    STRENGTH: Directional accuracy improves on the naive baseline by 4.5%.
-    STRENGTH: Low MAE (0.01984) relative to daily move size.
-    WEAKNESS: RMSE (0.03048) is much larger than MAE (0.01984) — errors widen on volatile days.
-    CONTEXT: The model still gets direction wrong 46.8% of the time.
+    Relative to the persistence benchmark, directional accuracy improves by 4.5%.
+    The mean absolute error is comparatively low at 0.01984 relative to daily return scale.
+    RMSE (0.03048) is materially above MAE (0.01984), which suggests sensitivity to larger forecast errors.
+    The model still assigns the wrong return direction on 46.8% of test observations.
 
   LightGBM:
-    STRENGTH: Directional accuracy improves on the naive baseline by 3.5%.
-    STRENGTH: Low MAE (0.01982) relative to daily move size.
-    WEAKNESS: RMSE (0.03045) is much larger than MAE (0.01982) — errors widen on volatile days.
-    CONTEXT: The model still gets direction wrong 47.8% of the time.
+    Relative to the persistence benchmark, directional accuracy improves by 3.5%.
+    The mean absolute error is comparatively low at 0.01982 relative to daily return scale.
+    RMSE (0.03045) is materially above MAE (0.01982), which suggests sensitivity to larger forecast errors.
+    The model still assigns the wrong return direction on 47.8% of test observations.
 
   OVERALL OBSERVATIONS:
     • Best observed directional accuracy is 53.2% from XGBoost Calibrated.
-    • That represents a +4.5% lift over the naive benchmark on this test split.
+    • That represents a +4.5% lift over the persistence benchmark on this test split.
     • Treat feature importance as in-sample association, not proof of causal predictive signal.
     • Predictions remain close to zero on many days, which is typical for next-day return regression.
 
-8. MANUAL SENTIMENT VALIDATION
+9. MANUAL SENTIMENT VALIDATION
 ----------------------------------------------------------------------
   Reviewed sample size : 36
   VADER agreement      : 55.6%
@@ -138,16 +147,16 @@
     neutral   10
     positive  10
 
-9. LIMITATIONS & DISCLAIMERS
+10. LIMITATIONS & DISCLAIMERS
 ----------------------------------------------------------------------
-  • Directional accuracy > 50% does NOT guarantee profitability.
+  • Directional accuracy above 50% does not, by itself, guarantee economic profitability.
   • Reddit sentiment reflects correlation, not causation.
-  • Meme stocks and coordinated posts may introduce noise.
+  • Viral narratives and coordinated posting activity may introduce additional noise.
   • Transaction costs and slippage are not modelled.
   • Past predictability does not imply future predictability.
   • Walk-forward backtesting recommended before live deployment.
 
-10. OUTPUT FILES DELIVERED
+11. OUTPUT FILES DELIVERED
 ----------------------------------------------------------------------
   data/raw/reddit_raw.parquet              — Raw Reddit posts & comments
   data/processed/sentiment_daily.parquet   — Daily sentiment per ticker
@@ -159,7 +168,7 @@
   outputs/directional_accuracy_stats.csv   — Directional accuracy confidence intervals
   outputs/ticker_model_metrics.csv         — Ticker-level test metrics
   outputs/monthly_model_metrics.csv        — Monthly test-period metrics
-  outputs/volume_ranking.png               — Top-10 ticker proof
+  outputs/volume_ranking.png               — Top-10 ticker ranking chart
   outputs/sentiment_timeseries.png         — 5-year sentiment chart
   outputs/model_comparison.png             — Model comparison chart
   outputs/directional_accuracy_ci.png      — Directional accuracy with confidence intervals

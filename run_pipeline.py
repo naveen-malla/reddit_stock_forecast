@@ -24,7 +24,7 @@ Exit codes:
       4. Score text with VADER (+ optional FinBERT)
       5. Fetch OHLCV data and engineer market features
       6. Merge, lag, and split the modelling dataset
-      7. Train Naive Baseline, XGBoost, XGBoost Calibrated, LightGBM; evaluate and compare
+      7. Train the persistence benchmark, XGBoost, XGBoost Calibrated, and LightGBM; evaluate and compare
       8. Generate plots, thesis evaluation artifacts, and save outputs
 """
 
@@ -161,7 +161,7 @@ def main() -> int:
         )
 
         # ── 7. Model training & evaluation ────────────────────────────────────
-        logger.info("\n[Stage 7] Training models (Baseline, XGBoost, XGBoost Calibrated, LightGBM) …")
+        logger.info("\n[Stage 7] Training predictive models (persistence benchmark, XGBoost, XGBoost Calibrated, LightGBM) …")
         from src.models import ModelTrainer
         mt = ModelTrainer()
         results = mt.train_and_evaluate(

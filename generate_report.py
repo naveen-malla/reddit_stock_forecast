@@ -11,6 +11,7 @@ from pathlib import Path
 from datetime import datetime
 
 from config import cfg
+from src.models import BASELINE_MODEL_NAME
 
 _ROOT = Path(__file__).resolve().parent
 outputs = _ROOT / "outputs"
@@ -107,24 +108,35 @@ try:
         w(f"  {row['model']:<20} {row['MAE']:>10.5f} {row['RMSE']:>10.5f} "
           f"{row['DirectionalAccuracy']:>11.1%}")
 
-    baseline_da = comp[comp["model"] == "Naive Baseline"]["DirectionalAccuracy"].values[0]
-    ml_comp = comp[comp["model"] != "Naive Baseline"]
+    baseline_da = comp[comp["model"] == BASELINE_MODEL_NAME]["DirectionalAccuracy"].values[0]
+    ml_comp = comp[comp["model"] != BASELINE_MODEL_NAME]
     best_ml_da_idx = ml_comp["DirectionalAccuracy"].idxmax()
     best_model = comp.loc[best_ml_da_idx, "model"]
     best_da = comp.loc[best_ml_da_idx, "DirectionalAccuracy"]
     best_gain = best_da - baseline_da
 
     w()
-    w(f"  Naive baseline DA       : {baseline_da:.1%}")
+    w(f"  Persistence benchmark DA : {baseline_da:.1%}")
     w(f"  Best model              : {best_model}")
     w(f"  Best directional acc    : {best_da:.1%}")
-    w(f"  Gain vs baseline        : {best_gain:+.1%}")
+    w(f"  Gain vs benchmark       : {best_gain:+.1%}")
 except Exception as e:
     w(f"  Model comparison not found: {e}")
 
-# ── 5. Directional Confidence Intervals ───────────────────────────────────────
+# ── 5. Evaluation Protocol ────────────────────────────────────────────────────
 w()
-w("5. DIRECTIONAL ACCURACY CONFIDENCE INTERVALS")
+w("5. EVALUATION PROTOCOL")
+w("-" * 70)
+w("  • Split design           : first 70% of dates for training, next 10% for validation, final 20% for testing")
+w("  • Target variable        : next-day close return, expressed as a percentage change")
+w("  • MAE                    : average absolute prediction error")
+w("  • RMSE                   : square-root of mean squared prediction error")
+w("  • Directional Accuracy   : share of test observations where the predicted sign matches the realised sign")
+w(f"  • Benchmark model        : {BASELINE_MODEL_NAME}")
+
+# ── 6. Directional Confidence Intervals ───────────────────────────────────────
+w()
+w("6. DIRECTIONAL ACCURACY CONFIDENCE INTERVALS")
 w("-" * 70)
 
 try:
@@ -139,14 +151,14 @@ try:
 except Exception as e:
     w(f"  Directional confidence intervals not found: {e}")
 
-# ── 6. Stability by Month and Ticker ──────────────────────────────────────────
+# ── 7. Stability by Month and Ticker ──────────────────────────────────────────
 w()
-w("6. STABILITY BY MONTH AND TICKER")
+w("7. STABILITY BY MONTH AND TICKER")
 w("-" * 70)
 
 try:
     comp = pd.read_csv(outputs / "model_comparison.csv")
-    best_model = comp[comp["model"] != "Naive Baseline"].sort_values("DirectionalAccuracy", ascending=False).iloc[0]["model"]
+    best_model = comp[comp["model"] != BASELINE_MODEL_NAME].sort_values("DirectionalAccuracy", ascending=False).iloc[0]["model"]
     monthly = pd.read_csv(outputs / "monthly_model_metrics.csv")
     ticker = pd.read_csv(outputs / "ticker_model_metrics.csv")
 
@@ -172,15 +184,15 @@ try:
 except Exception as e:
     w(f"  Stability analysis not found: {e}")
 
-# ── 7. Strengths & Weaknesses ─────────────────────────────────────────────────
+# ── 8. Interpretation of Model Results ────────────────────────────────────────
 w()
-w("7. STRENGTHS & WEAKNESSES")
+w("8. INTERPRETATION OF MODEL RESULTS")
 w("-" * 70)
 
 try:
     comp = pd.read_csv(outputs / "model_comparison.csv")
-    ml = comp[comp["model"] != "Naive Baseline"]
-    baseline_da = comp[comp["model"] == "Naive Baseline"]["DirectionalAccuracy"].values[0]
+    ml = comp[comp["model"] != BASELINE_MODEL_NAME]
+    baseline_da = comp[comp["model"] == BASELINE_MODEL_NAME]["DirectionalAccuracy"].values[0]
 
     for _, row in ml.iterrows():
         w()
@@ -191,17 +203,17 @@ try:
         gain = da - baseline_da
 
         if gain > 0:
-            w(f"    STRENGTH: Directional accuracy improves on the naive baseline by {gain:.1%}.")
+            w(f"    Relative to the persistence benchmark, directional accuracy improves by {gain:.1%}.")
         else:
-            w(f"    WEAKNESS: Directional accuracy is {abs(gain):.1%} below the naive baseline.")
+            w(f"    Relative to the persistence benchmark, directional accuracy is lower by {abs(gain):.1%}.")
 
         if mae < 0.02:
-            w(f"    STRENGTH: Low MAE ({mae:.5f}) relative to daily move size.")
+            w(f"    The mean absolute error is comparatively low at {mae:.5f} relative to daily return scale.")
 
         if rmse / max(mae, 1e-9) > 1.5:
-            w(f"    WEAKNESS: RMSE ({rmse:.5f}) is much larger than MAE ({mae:.5f}) — errors widen on volatile days.")
+            w(f"    RMSE ({rmse:.5f}) is materially above MAE ({mae:.5f}), which suggests sensitivity to larger forecast errors.")
 
-        w(f"    CONTEXT: The model still gets direction wrong {(1-da):.1%} of the time.")
+        w(f"    The model still assigns the wrong return direction on {(1-da):.1%} of test observations.")
 
     w()
     w("  OVERALL OBSERVATIONS:")
@@ -212,7 +224,7 @@ try:
     )
     w(
         f"    • That represents a {best_row['DirectionalAccuracy'] - baseline_da:+.1%} lift "
-        "over the naive benchmark on this test split."
+        "over the persistence benchmark on this test split."
     )
     w("    • Treat feature importance as in-sample association, not proof of causal predictive signal.")
     w("    • Predictions remain close to zero on many days, which is typical for next-day return regression.")
@@ -220,9 +232,9 @@ try:
 except Exception as e:
     w(f"  Could not generate analysis: {e}")
 
-# ── 8. Manual Sentiment Validation ────────────────────────────────────────────
+# ── 9. Manual Sentiment Validation ────────────────────────────────────────────
 w()
-w("8. MANUAL SENTIMENT VALIDATION")
+w("9. MANUAL SENTIMENT VALIDATION")
 w("-" * 70)
 
 try:
@@ -237,20 +249,20 @@ try:
 except Exception as e:
     w(f"  Sentiment validation not found: {e}")
 
-# ── 9. Limitations ────────────────────────────────────────────────────────────
+# ── 10. Limitations ───────────────────────────────────────────────────────────
 w()
-w("9. LIMITATIONS & DISCLAIMERS")
+w("10. LIMITATIONS & DISCLAIMERS")
 w("-" * 70)
-w("  • Directional accuracy > 50% does NOT guarantee profitability.")
+w("  • Directional accuracy above 50% does not, by itself, guarantee economic profitability.")
 w("  • Reddit sentiment reflects correlation, not causation.")
-w("  • Meme stocks and coordinated posts may introduce noise.")
+w("  • Viral narratives and coordinated posting activity may introduce additional noise.")
 w("  • Transaction costs and slippage are not modelled.")
 w("  • Past predictability does not imply future predictability.")
 w("  • Walk-forward backtesting recommended before live deployment.")
 
-# ── 10. Output Files ──────────────────────────────────────────────────────────
+# ── 11. Output Files ──────────────────────────────────────────────────────────
 w()
-w("10. OUTPUT FILES DELIVERED")
+w("11. OUTPUT FILES DELIVERED")
 w("-" * 70)
 w("  data/raw/reddit_raw.parquet              — Raw Reddit posts & comments")
 w("  data/processed/sentiment_daily.parquet   — Daily sentiment per ticker")
@@ -262,7 +274,7 @@ w("  outputs/model_comparison.csv             — Performance metrics")
 w("  outputs/directional_accuracy_stats.csv   — Directional accuracy confidence intervals")
 w("  outputs/ticker_model_metrics.csv         — Ticker-level test metrics")
 w("  outputs/monthly_model_metrics.csv        — Monthly test-period metrics")
-w("  outputs/volume_ranking.png               — Top-10 ticker proof")
+w("  outputs/volume_ranking.png               — Top-10 ticker ranking chart")
 w("  outputs/sentiment_timeseries.png         — 5-year sentiment chart")
 w("  outputs/model_comparison.png             — Model comparison chart")
 w("  outputs/directional_accuracy_ci.png      — Directional accuracy with confidence intervals")

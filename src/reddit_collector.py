@@ -1,15 +1,15 @@
 """
 src/reddit_collector.py
 ───────────────────────
-Real Reddit data collection only. No fake data.
+Collects Reddit data from external sources without generating synthetic rows.
 
 Sources (tried in order):
   1. Arctic Shift API  — free, no auth, real data 2020–present
   2. PullPush.io API   — backup mirror, real data 2020–present
   3. PRAW              — Reddit official API, optional recent-tail supplement
 
-If data is sparse for some periods, that is reported honestly.
-No fake rows are ever generated.
+If data is sparse for some periods, the coverage report states that explicitly.
+No synthetic rows are generated.
 """
 
 from __future__ import annotations
@@ -85,7 +85,7 @@ class RedditCollector:
         end_dt     = datetime.strptime(end,   "%Y-%m-%d").date()
         cutoff     = (datetime.now(timezone.utc) - timedelta(days=365)).date()
 
-        logger.info(f"Collecting REAL Reddit data: {start} → {end}")
+        logger.info(f"Collecting Reddit data for the configured study window: {start} → {end}")
 
         frames: List[pd.DataFrame] = []
 
@@ -374,7 +374,7 @@ class RedditCollector:
         filtered = exploded[exploded["ticker"].isin(tickers)]
 
         print("\n" + "═" * 72)
-        print("  REAL REDDIT DATA COVERAGE REPORT")
+        print("  REDDIT DATA COVERAGE SUMMARY")
         print("═" * 72)
 
         # Per-source row counts
@@ -411,18 +411,18 @@ class RedditCollector:
             print(f"  {total:>6,} rows  {status}")
 
         print("─" * 72)
-        print(f"  ✅ = good data   ⚠ = sparse (<10 posts)   ❌ = no data")
+        print(f"  ✅ = adequate coverage   ⚠ = limited coverage (<10 posts)   ❌ = no collected data")
         total_days = (df["date"].max() - df["date"].min()).days
         print(f"\n  Actual span collected: {total_days} days ({total_days/365.25:.1f} years)")
         if not all_pass:
             print(
-                "\n  ⚠  Some years have gaps. This is because:\n"
+                "\n  ⚠  Some years have limited coverage. This can occur because:\n"
                 "     - Reddit API only gives last 1 year directly\n"
                 "     - Older data depends on Arctic Shift / PullPush availability\n"
-                "     - Model will still train — sparse years just have less sentiment signal"
+                "     - Sparse periods contribute less sentiment information to the modelling dataset"
             )
         else:
-            print("\n  ✅ Full coverage across all tickers and years.")
+            print("\n  ✅ Coverage is present for all tracked tickers and years in the study window.")
         print("═" * 72 + "\n")
 
     # ── Utilities ─────────────────────────────────────────────────────────────

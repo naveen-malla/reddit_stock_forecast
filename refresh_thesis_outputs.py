@@ -22,7 +22,7 @@ import pandas as pd
 from config import cfg
 from src.dataset_builder import DatasetBuilder
 from src.market_data import MarketDataFetcher
-from src.models import ModelTrainer, NaiveBaseline, evaluate
+from src.models import BASELINE_MODEL_NAME, ModelTrainer, PersistenceBenchmark, evaluate
 from src.reddit_collector import RedditCollector
 from src.results_analyzer import ResultsAnalyzer
 from src.sentiment_engine import SentimentEngine
@@ -43,6 +43,9 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    from loguru import logger
+
+    logger.info("Starting thesis artifact refresh from cached datasets and saved model files.")
     raw_path = cfg.data_raw / "reddit_raw.parquet"
     reddit_df = pd.read_parquet(raw_path)
     reddit_df = RedditCollector._clip_to_window(
@@ -50,10 +53,12 @@ def main() -> int:
         pd.Timestamp(cfg.start_date).date(),
         pd.Timestamp(cfg.end_date).date(),
     )
+    logger.info(f"Loaded cached Reddit dataset: {len(reddit_df):,} rows within the configured study window.")
 
     sentiment_df = SentimentEngine(use_finbert=False).score_and_aggregate(reddit_df)
     top_tickers = TickerSelector().get_top_tickers(force=False)
     market_df = MarketDataFetcher().fetch_and_engineer(top_tickers, force=False)
+    logger.info(f"Loaded market feature dataset for {len(top_tickers)} tickers.")
 
     db = DatasetBuilder()
     X_train, X_val, X_test, y_train, y_val, y_test, feature_cols = db.build(
@@ -61,11 +66,16 @@ def main() -> int:
         sentiment_df=sentiment_df,
         force=False,
     )
+    logger.info(
+        f"Prepared chronological modelling splits with {len(feature_cols)} numeric features: "
+        f"train={len(y_train):,}, validation={len(y_val):,}, test={len(y_test):,}."
+    )
 
     preds = db.test_meta.copy().reset_index(drop=True)
     preds["actual"] = y_test
 
     if args.retrain:
+        logger.info("Retraining all models before regenerating thesis artifacts.")
         mt = ModelTrainer()
         results = mt.train_and_evaluate(
             X_train,
@@ -80,10 +90,11 @@ def main() -> int:
         for model_name, model in mt.trained_models.items():
             preds[model_name] = model.predict(X_test)
     else:
-        baseline = NaiveBaseline()
+        logger.info("Reusing the saved model files to regenerate evaluation artifacts.")
+        baseline = PersistenceBenchmark()
         baseline.set_ret_col_idx(feature_cols)
         saved_models = {
-            "Naive Baseline": baseline,
+            BASELINE_MODEL_NAME: baseline,
             "XGBoost": joblib.load(cfg.models_dir / "xgboost_model.pkl"),
             "XGBoost Calibrated": joblib.load(cfg.models_dir / "xgboost_calibrated_model.pkl"),
             "LightGBM": joblib.load(cfg.models_dir / "lightgbm_model.pkl"),
@@ -98,12 +109,13 @@ def main() -> int:
         pd.DataFrame(rows).to_csv(cfg.outputs_dir / "model_comparison.csv", index=False)
 
     preds.to_parquet(cfg.outputs_dir / "test_predictions.parquet", index=False)
+    logger.info("Saved refreshed test predictions with ticker and date metadata.")
 
     Visualiser().plot_all()
     ResultsAnalyzer().run_all()
     SentimentValidationReport().generate()
     runpy.run_path("generate_report.py", run_name="__main__")
-    print("thesis outputs refreshed")
+    logger.success("Thesis-facing evaluation tables, figures, and report snapshots were refreshed successfully.")
     return 0
 
 

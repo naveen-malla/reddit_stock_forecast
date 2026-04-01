@@ -1,37 +1,44 @@
-2026-04-01 23:48:52.439 | INFO     | src.sentiment_engine:score_and_aggregate:76 - Scoring 11,496 Reddit items …
-2026-04-01 23:48:52.462 | INFO     | src.sentiment_engine:score_and_aggregate:80 -   Running VADER …
-2026-04-01 23:49:11.213 | INFO     | src.sentiment_engine:score_and_aggregate:87 -   FinBERT disabled — using VADER only.
-2026-04-01 23:49:11.311 | SUCCESS  | src.sentiment_engine:score_and_aggregate:92 - Scored data → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/data/processed/reddit_scored.parquet
-2026-04-01 23:49:12.084 | SUCCESS  | src.sentiment_engine:score_and_aggregate:97 - Daily sentiment → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/data/processed/sentiment_daily.parquet  shape=(4689, 18)
-2026-04-01 23:49:12.085 | DEBUG    | src.ticker_selector:volume_ranking_df:38 - Volume ranking cache hit: /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/data/processed/volume_ranking.parquet
-2026-04-01 23:49:12.111 | DEBUG    | src.market_data:fetch_and_engineer:46 - Market features cache hit: /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/data/processed/market_features.parquet
-2026-04-01 23:49:12.117 | DEBUG    | src.dataset_builder:build:63 - Dataset cache hit.
-2026-04-01 23:49:12.143 | INFO     | src.dataset_builder:_split:256 - Split sizes — Train: (8770, 73)  Val: (1250, 73)  Test: (2510, 73)  Features: 73
-2026-04-01 23:49:12.578 | SUCCESS  | src.visualiser:_save:278 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/volume_ranking.png
-2026-04-01 23:49:13.875 | SUCCESS  | src.visualiser:_save:278 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/sentiment_timeseries.png
-2026-04-01 23:49:14.133 | SUCCESS  | src.visualiser:_save:278 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/model_comparison.png
-2026-04-01 23:49:14.492 | SUCCESS  | src.visualiser:_save:278 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/feature_importance.png
-2026-04-01 23:49:14.940 | SUCCESS  | src.visualiser:_save:278 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/predictions_scatter.png
-2026-04-01 23:49:15.248 | SUCCESS  | src.visualiser:plot_interactive_sentiment:226 - Saved interactive plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/sentiment_interactive.html
-2026-04-01 23:49:15.322 | SUCCESS  | src.visualiser:plot_interactive_predictions:272 - Saved interactive plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/predictions_interactive.html
-2026-04-01 23:49:15.328 | SUCCESS  | src.results_analyzer:save_directional_accuracy_stats:133 - Saved evaluation table → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/directional_accuracy_stats.csv
-2026-04-01 23:49:15.339 | SUCCESS  | src.results_analyzer:save_ticker_metrics:147 - Saved evaluation table → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/ticker_model_metrics.csv
-2026-04-01 23:49:15.356 | SUCCESS  | src.results_analyzer:save_monthly_metrics:164 - Saved evaluation table → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/monthly_model_metrics.csv
-2026-04-01 23:49:15.459 | SUCCESS  | src.results_analyzer:_save:262 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/directional_accuracy_ci.png
-2026-04-01 23:49:15.623 | SUCCESS  | src.results_analyzer:_save:262 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/ticker_directional_accuracy.png
-2026-04-01 23:49:15.830 | SUCCESS  | src.results_analyzer:_save:262 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/monthly_directional_accuracy.png
-2026-04-01 23:49:15.985 | SUCCESS  | src.results_analyzer:_save:262 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/residual_distribution.png
-2026-04-01 23:49:15.990 | SUCCESS  | src.results_analyzer:plot_direction_confusion:251 - Saved evaluation table → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/direction_confusion.csv
-2026-04-01 23:49:16.055 | SUCCESS  | src.results_analyzer:_save:262 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/direction_confusion.png
-2026-04-01 23:49:16.144 | SUCCESS  | src.sentiment_validation:generate:59 - Saved validation sample → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/sentiment_validation_sample.csv
-2026-04-01 23:49:16.148 | SUCCESS  | src.sentiment_validation:generate:83 - Saved validation summary → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/sentiment_validation_summary.txt
-2026-04-01 23:49:16.232 | SUCCESS  | src.sentiment_validation:generate:91 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/sentiment_validation_confusion.png
+2026-04-01 23:57:26.481 | INFO     | __main__:main:48 - Starting thesis artifact refresh from cached datasets and saved model files.
+2026-04-01 23:57:26.756 | INFO     | __main__:main:56 - Loaded cached Reddit dataset: 11,496 rows within the configured study window.
+2026-04-01 23:57:26.819 | INFO     | src.sentiment_engine:score_and_aggregate:76 - Scoring 11,496 Reddit items …
+2026-04-01 23:57:26.846 | INFO     | src.sentiment_engine:score_and_aggregate:80 -   Running VADER …
+2026-04-01 23:57:45.766 | INFO     | src.sentiment_engine:score_and_aggregate:87 -   FinBERT disabled — using VADER only.
+2026-04-01 23:57:45.905 | SUCCESS  | src.sentiment_engine:score_and_aggregate:92 - Scored data → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/data/processed/reddit_scored.parquet
+2026-04-01 23:57:46.653 | SUCCESS  | src.sentiment_engine:score_and_aggregate:97 - Daily sentiment → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/data/processed/sentiment_daily.parquet  shape=(4689, 18)
+2026-04-01 23:57:46.656 | DEBUG    | src.ticker_selector:volume_ranking_df:38 - Volume ranking cache hit: /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/data/processed/volume_ranking.parquet
+2026-04-01 23:57:46.661 | DEBUG    | src.market_data:fetch_and_engineer:46 - Market features cache hit: /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/data/processed/market_features.parquet
+2026-04-01 23:57:46.667 | INFO     | __main__:main:61 - Loaded market feature dataset for 10 tickers.
+2026-04-01 23:57:46.667 | DEBUG    | src.dataset_builder:build:63 - Dataset cache hit.
+2026-04-01 23:57:46.725 | INFO     | src.dataset_builder:_split:256 - Split sizes — Train: (8770, 73)  Val: (1250, 73)  Test: (2510, 73)  Features: 73
+2026-04-01 23:57:46.726 | INFO     | __main__:main:69 - Prepared chronological modelling splits with 73 numeric features: train=8,770, validation=1,250, test=2,510.
+2026-04-01 23:57:46.726 | INFO     | __main__:main:93 - Reusing the saved model files to regenerate evaluation artifacts.
+2026-04-01 23:57:46.770 | INFO     | __main__:main:112 - Saved refreshed test predictions with ticker and date metadata.
+2026-04-01 23:57:47.311 | SUCCESS  | src.visualiser:_save:279 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/volume_ranking.png
+2026-04-01 23:57:48.591 | SUCCESS  | src.visualiser:_save:279 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/sentiment_timeseries.png
+2026-04-01 23:57:48.877 | SUCCESS  | src.visualiser:_save:279 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/model_comparison.png
+2026-04-01 23:57:49.305 | SUCCESS  | src.visualiser:_save:279 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/feature_importance.png
+2026-04-01 23:57:49.844 | SUCCESS  | src.visualiser:_save:279 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/predictions_scatter.png
+2026-04-01 23:57:50.161 | SUCCESS  | src.visualiser:plot_interactive_sentiment:227 - Saved interactive plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/sentiment_interactive.html
+2026-04-01 23:57:50.246 | SUCCESS  | src.visualiser:plot_interactive_predictions:273 - Saved interactive plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/predictions_interactive.html
+2026-04-01 23:57:50.252 | SUCCESS  | src.results_analyzer:save_directional_accuracy_stats:134 - Saved evaluation table → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/directional_accuracy_stats.csv
+2026-04-01 23:57:50.263 | SUCCESS  | src.results_analyzer:save_ticker_metrics:148 - Saved evaluation table → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/ticker_model_metrics.csv
+2026-04-01 23:57:50.281 | SUCCESS  | src.results_analyzer:save_monthly_metrics:165 - Saved evaluation table → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/monthly_model_metrics.csv
+2026-04-01 23:57:50.386 | SUCCESS  | src.results_analyzer:_save:263 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/directional_accuracy_ci.png
+2026-04-01 23:57:50.559 | SUCCESS  | src.results_analyzer:_save:263 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/ticker_directional_accuracy.png
+2026-04-01 23:57:50.763 | SUCCESS  | src.results_analyzer:_save:263 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/monthly_directional_accuracy.png
+2026-04-01 23:57:50.921 | SUCCESS  | src.results_analyzer:_save:263 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/residual_distribution.png
+2026-04-01 23:57:50.928 | SUCCESS  | src.results_analyzer:plot_direction_confusion:252 - Saved evaluation table → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/direction_confusion.csv
+2026-04-01 23:57:51.001 | SUCCESS  | src.results_analyzer:_save:263 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/direction_confusion.png
+2026-04-01 23:57:51.079 | SUCCESS  | src.sentiment_validation:generate:59 - Saved validation sample → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/sentiment_validation_sample.csv
+2026-04-01 23:57:51.084 | SUCCESS  | src.sentiment_validation:generate:83 - Saved validation summary → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/sentiment_validation_summary.txt
+2026-04-01 23:57:51.170 | SUCCESS  | src.sentiment_validation:generate:91 - Saved plot → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/sentiment_validation_confusion.png
+2026-04-01 23:57:51.228 | SUCCESS  | __main__:main:118 - Thesis-facing evaluation tables, figures, and report snapshots were refreshed successfully.
 Report saved → /Users/naveenmalla/Work/Personal/misc/reddit_equity_forecast/outputs/model_analysis.txt
 
 Preview:
 ======================================================================
   REDDIT EQUITY FORECAST — MODEL ANALYSIS REPORT
-  Generated: 2026-04-01 23:49
+  Generated: 2026-04-01 23:57
 ======================================================================
 
 1. DATASET COVERAGE
@@ -59,4 +66,3 @@ Preview:
   Total posts/comments : 11,496
   Configured window    : 2021-01-01 → 2025-12-31
   Collected range      : 2021-01-01 → 2025-12-31
-thesis outputs refreshed
