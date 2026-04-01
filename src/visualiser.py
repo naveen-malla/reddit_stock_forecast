@@ -35,6 +35,7 @@ from loguru import logger
 sns.set_theme(style="darkgrid", context="notebook", font_scale=1.1)
 PALETTE = sns.color_palette("tab10")
 FIG_DPI = 150
+_PREDICTION_META_COLS = {"ticker", "date", "actual"}
 
 
 class Visualiser:
@@ -169,7 +170,7 @@ class Visualiser:
             return
         df = pd.read_parquet(pred_path)
 
-        ml_models = [c for c in df.columns if c not in ("actual", "Naive Baseline")]
+        ml_models = [c for c in df.columns if c not in (_PREDICTION_META_COLS | {"Naive Baseline"})]
         fig, axes = plt.subplots(1, len(ml_models), figsize=(7 * len(ml_models), 5))
         if len(ml_models) == 1:
             axes = [axes]
@@ -232,7 +233,7 @@ class Visualiser:
             return
         df = pd.read_parquet(pred_path).reset_index(drop=True)
 
-        ml_models = [c for c in df.columns if c != "actual"]
+        ml_models = [c for c in df.columns if c not in _PREDICTION_META_COLS]
         fig = make_subplots(
             rows=1, cols=len(ml_models),
             subplot_titles=ml_models,

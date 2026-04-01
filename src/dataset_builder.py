@@ -39,6 +39,9 @@ class DatasetBuilder:
 
     def __init__(self):
         self._feature_cols: List[str] = []
+        self.train_meta: pd.DataFrame | None = None
+        self.val_meta: pd.DataFrame | None = None
+        self.test_meta: pd.DataFrame | None = None
 
 
     def build(
@@ -235,6 +238,10 @@ class DatasetBuilder:
         train_df = df[df["date"] < train_end_date].sort_values("date").reset_index(drop=True)
         val_df = df[(df["date"] >= train_end_date) & (df["date"] < val_end_date)].sort_values("date").reset_index(drop=True)
         test_df = df[df["date"] >= val_end_date].sort_values("date").reset_index(drop=True)
+
+        self.train_meta = train_df[["ticker", "date"]].copy()
+        self.val_meta = val_df[["ticker", "date"]].copy()
+        self.test_meta = test_df[["ticker", "date"]].copy()
 
 
         def extract(part):

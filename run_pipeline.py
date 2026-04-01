@@ -17,15 +17,15 @@ Exit codes:
   1 — configuration error (missing .env credentials)
   2 — runtime error
 
-Pipeline stages:
-  1. Validate configuration
-  2. Select top-10 tickers by trading volume
-  3. Collect Reddit posts/comments (archive APIs + optional PRAW supplement)
-  4. Score text with VADER (+ optional FinBERT)
-  5. Fetch OHLCV data and engineer market features
-  6. Merge, lag, and split the modelling dataset
-  7. Train Naive Baseline, XGBoost, XGBoost Calibrated, LightGBM; evaluate and compare
-  8. Generate plots and save outputs
+    Pipeline stages:
+      1. Validate configuration
+      2. Select top-10 tickers by trading volume
+      3. Collect Reddit posts/comments (archive APIs + optional PRAW supplement)
+      4. Score text with VADER (+ optional FinBERT)
+      5. Fetch OHLCV data and engineer market features
+      6. Merge, lag, and split the modelling dataset
+      7. Train Naive Baseline, XGBoost, XGBoost Calibrated, LightGBM; evaluate and compare
+      8. Generate plots, thesis evaluation artifacts, and save outputs
 """
 
 import argparse
@@ -173,16 +173,26 @@ def main() -> int:
 
         # Persist predictions for the visualiser
         import pandas as pd
-        preds = pd.DataFrame({"actual": y_test})
+        if getattr(db, "test_meta", None) is not None:
+            preds = db.test_meta.copy().reset_index(drop=True)
+        else:
+            preds = pd.DataFrame(index=range(len(y_test)))
+        preds["actual"] = y_test
         for model_name, model in mt.trained_models.items():
             preds[model_name] = model.predict(X_test)
         preds.to_parquet(cfg.outputs_dir / "test_predictions.parquet", index=False)
 
         # ── 8. Visualisations ─────────────────────────────────────────────────
-        logger.info("\n[Stage 8] Generating plots …")
+        logger.info("\n[Stage 8] Generating plots and thesis evaluation artifacts …")
         from src.visualiser import Visualiser
+        from src.results_analyzer import ResultsAnalyzer
+        from src.sentiment_validation import SentimentValidationReport
         v = Visualiser()
         v.plot_all()
+        ra = ResultsAnalyzer()
+        ra.run_all()
+        svr = SentimentValidationReport()
+        svr.generate()
 
         logger.info("\n" + "=" * 60)
         logger.success("  Pipeline completed successfully!")
