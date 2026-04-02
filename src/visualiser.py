@@ -82,7 +82,7 @@ class Visualiser:
         add_title(
             ax,
             f"Top {cfg.top_n_tickers} Tickers by 90-Day Average Trading Volume",
-            "Ranked within the thesis ticker candidate universe.",
+            None,
         )
         ax.xaxis.set_major_formatter(mtick.FuncFormatter(lambda x, _: f"{x:.0f}M"))
         ax.set_xlabel("Average daily volume (millions of shares)")
@@ -144,14 +144,7 @@ class Visualiser:
             ax.legend(frameon=False, fontsize=8.5, loc="upper right")
 
         fig.suptitle("Reddit Sentiment Time Series by Ticker", x=0.06, y=0.995, ha="left", fontsize=14, fontweight="bold")
-        fig.text(
-            0.06,
-            0.968,
-            "Daily ticker-level sentiment with smoothed VADER scores and optional FinBERT comparison.",
-            ha="left",
-            fontsize=9.5,
-            color="#5B6B7C",
-        )
+        fig.text(0.06, 0.968, "Daily ticker sentiment with smoothed VADER scores.", ha="left", fontsize=9.5, color="#5B6B7C")
         fig.tight_layout(rect=[0, 0, 1, 0.95])
         self._save(fig, "sentiment_timeseries")
 
@@ -197,11 +190,11 @@ class Visualiser:
                 ax.set_ylim(0.0, max(vals) * 1.22)
             ax.tick_params(axis="x", rotation=0, pad=6)
 
-        fig.suptitle("Model Comparison on the Held-Out Test Period", x=0.06, y=1.02, ha="left", fontsize=14, fontweight="bold")
+        fig.suptitle("Model Comparison", x=0.06, y=1.02, ha="left", fontsize=14, fontweight="bold")
         fig.text(
             0.06,
             0.965,
-            "Benchmark and model errors are shown alongside directional accuracy on the same locked test split.",
+            "MAE, RMSE, and directional accuracy across the benchmark and model set.",
             ha="left",
             fontsize=9.5,
             color="#5B6B7C",

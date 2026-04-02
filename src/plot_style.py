@@ -84,13 +84,14 @@ def style_axes(ax: plt.Axes, *, x_grid: bool = False, y_grid: bool = True) -> No
 
 
 def add_title(ax: plt.Axes, title: str, subtitle: str | None = None) -> None:
-    ax.set_title(title, loc="left", fontsize=13, fontweight="bold", pad=14)
+    ax.set_title(title, loc="left", fontsize=13, fontweight="bold", pad=18)
     if subtitle:
-        ax.text(
-            0.0,
-            1.02,
+        ax.annotate(
             subtitle,
-            transform=ax.transAxes,
+            xy=(0.0, 1.0),
+            xycoords="axes fraction",
+            xytext=(0, 6),
+            textcoords="offset points",
             ha="left",
             va="bottom",
             fontsize=9.5,
@@ -128,4 +129,3 @@ def apply_plotly_layout(fig, title: str, xaxis_title: str, yaxis_title: str, hei
         height=height,
         margin={"l": 70, "r": 30, "t": 70, "b": 70},
     )
-

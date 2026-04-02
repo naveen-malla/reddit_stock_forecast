@@ -100,7 +100,7 @@ class SentimentValidationReport:
         add_title(
             ax,
             "Manual vs VADER Sentiment Labels",
-            "Counts are based on the reviewed sample committed in data/validation.",
+            "Counts are based on the reviewed sample.",
         )
         fig.tight_layout()
         fig.savefig(self.out_dir / "sentiment_validation_confusion.png", dpi=FIG_DPI, bbox_inches="tight")

@@ -200,7 +200,7 @@ class ResultsAnalyzer:
         add_title(
             ax,
             "Directional Accuracy with 95% Confidence Intervals",
-            "Wilson intervals on the held-out test period.",
+            "Error bars show the 95% confidence interval for each model.",
         )
         add_reference_line(ax, 0.50, "Random expectation (50%)")
         ax.set_ylim(0.40, max(float(df["ci_upper"].max()) + 0.03, 0.55))
@@ -251,7 +251,7 @@ class ResultsAnalyzer:
         add_title(
             ax,
             f"Ticker-Level Directional Accuracy: {best_model} vs {BASELINE_MODEL_NAME}",
-            "Each bar pair is computed on the same test-period observations.",
+            None,
         )
         add_reference_line(ax, 0.50)
         ax.set_xticks(x)
@@ -270,7 +270,7 @@ class ResultsAnalyzer:
         add_title(
             ax,
             "Monthly Directional Accuracy Stability",
-            "Performance is tracked month by month across the test period.",
+            "Month-by-month directional accuracy.",
         )
         for model in monthly_df["model"].unique():
             part = monthly_df[monthly_df["model"] == model].sort_values("month")
@@ -301,7 +301,7 @@ class ResultsAnalyzer:
         add_title(
             ax,
             f"Residual Distribution for {best_model}",
-            "Residuals are computed as predicted return minus realised next-day return.",
+            "Prediction error is calculated as predicted return minus actual return.",
         )
         add_reference_line(ax, 0.0)
         ax.set_xlabel("Prediction Error (predicted - actual)")
