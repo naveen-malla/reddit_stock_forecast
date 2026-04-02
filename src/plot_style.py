@@ -99,6 +99,29 @@ def add_title(ax: plt.Axes, title: str, subtitle: str | None = None) -> None:
         )
 
 
+def add_figure_heading(fig: plt.Figure, title: str, subtitle: str | None = None, *, x: float = 0.06) -> None:
+    fig.text(
+        x,
+        0.982,
+        title,
+        ha="left",
+        va="top",
+        fontsize=14,
+        fontweight="bold",
+        color=TEXT,
+    )
+    if subtitle:
+        fig.text(
+            x,
+            0.942,
+            subtitle,
+            ha="left",
+            va="top",
+            fontsize=9.5,
+            color=MUTED,
+        )
+
+
 def add_reference_line(ax: plt.Axes, y: float, label: str | None = None) -> None:
     ax.axhline(y, color=REFERENCE, linestyle=(0, (4, 3)), linewidth=1.2, alpha=0.95, label=label)
 

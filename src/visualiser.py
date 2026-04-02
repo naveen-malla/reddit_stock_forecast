@@ -39,6 +39,7 @@ from src.plot_style import (
     SENTIMENT_FILL,
     XGBOOST,
     add_reference_line,
+    add_figure_heading,
     add_title,
     apply_chart_style,
     apply_plotly_layout,
@@ -143,9 +144,8 @@ class Visualiser:
             ax.set_title(ticker, loc="left", fontsize=10.5, fontweight="bold", pad=8)
             ax.legend(frameon=False, fontsize=8.5, loc="upper right")
 
-        fig.suptitle("Reddit Sentiment Time Series by Ticker", x=0.06, y=0.995, ha="left", fontsize=14, fontweight="bold")
-        fig.text(0.06, 0.968, "Daily ticker sentiment with smoothed VADER scores.", ha="left", fontsize=9.5, color="#5B6B7C")
-        fig.tight_layout(rect=[0, 0, 1, 0.95])
+        add_figure_heading(fig, "Reddit Sentiment Time Series by Ticker", "Daily ticker sentiment with smoothed VADER scores.")
+        fig.tight_layout(rect=[0, 0, 1, 0.91])
         self._save(fig, "sentiment_timeseries")
 
     # ── 3. Model comparison ───────────────────────────────────────────────────
@@ -190,16 +190,8 @@ class Visualiser:
                 ax.set_ylim(0.0, max(vals) * 1.22)
             ax.tick_params(axis="x", rotation=0, pad=6)
 
-        fig.suptitle("Model Comparison", x=0.06, y=1.02, ha="left", fontsize=14, fontweight="bold")
-        fig.text(
-            0.06,
-            0.965,
-            "MAE, RMSE, and directional accuracy across the benchmark and model set.",
-            ha="left",
-            fontsize=9.5,
-            color="#5B6B7C",
-        )
-        fig.tight_layout(rect=[0, 0, 1, 0.94])
+        add_figure_heading(fig, "Model Comparison", "MAE, RMSE, and directional accuracy across the benchmark and model set.")
+        fig.tight_layout(rect=[0, 0, 1, 0.91])
         self._save(fig, "model_comparison")
 
     # ── 4. Feature importance ─────────────────────────────────────────────────
@@ -223,8 +215,8 @@ class Visualiser:
             add_title(ax, f"{model_name.capitalize()} Top {top_n} Features")
             ax.set_xlabel("Feature Importance")
 
-        fig.suptitle("Feature Importance Comparison", x=0.06, y=1.01, ha="left", fontsize=14, fontweight="bold")
-        fig.tight_layout(rect=[0, 0, 1, 0.97])
+        add_figure_heading(fig, "Feature Importance Comparison")
+        fig.tight_layout(rect=[0, 0, 1, 0.94])
         self._save(fig, "feature_importance")
 
     # ── 5. Predicted vs actual scatter ────────────────────────────────────────
@@ -269,8 +261,8 @@ class Visualiser:
             add_title(ax, model_name)
             ax.legend(frameon=False, fontsize=8.5, loc="upper left")
 
-        fig.suptitle("Predicted vs Actual Next-Day Returns", x=0.06, y=1.01, ha="left", fontsize=14, fontweight="bold")
-        fig.tight_layout(rect=[0, 0, 1, 0.97])
+        add_figure_heading(fig, "Predicted vs Actual Next-Day Returns")
+        fig.tight_layout(rect=[0, 0, 1, 0.94])
         self._save(fig, "predictions_scatter")
 
     # ── 6. Interactive Plotly: sentiment over time ────────────────────────────
